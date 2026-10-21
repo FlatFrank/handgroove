@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Handfield</title>
+<title>Handgroove</title>
 <style>
 /* One field, Kaoss-pad style: X = time (sparse → dense), Y = tone (dark → bright).
    Sounds are lights you pick up and put down. Deliberately single dark theme: it's a night instrument. */
@@ -59,7 +59,7 @@ button:focus-visible{outline:2px solid var(--ink);outline-offset:3px}
 <video id="cam" playsinline muted hidden></video>
 
 <div id="top">
-  <span><b>Handfield</b> · <span id="tempoTxt">116 bpm · D aeolian</span></span>
+  <span><b>Handgroove</b> · <span id="tempoTxt">116 bpm · D aeolian</span></span>
   <span><span id="status">mouse</span> <span id="tabs" role="tablist" aria-label="Panels">
     <button type="button" data-p="sound" class="on"><kbd>1</kbd>sound</button><button type="button" data-p="texture"><kbd>2</kbd>texture</button><button type="button" data-p="style"><kbd>3</kbd>style</button><button type="button" data-p="harmony"><kbd>4</kbd>harmony</button>
   </span></span>
@@ -69,7 +69,7 @@ button:focus-visible{outline:2px solid var(--ink);outline-offset:3px}
 
 <div id="start">
   <div class="box">
-    <h1>Hand<span>field</span></h1>
+    <h1>Hand<span>groove</span></h1>
     <p>An ambient and minimal music field. Every sound is a light on the screen, and where it sits is how it plays:
       left to right goes from sparse to dense, bottom to top from dark to bright.</p>
     <ol>
@@ -1047,7 +1047,7 @@ document.getElementById("goCam").onclick = async () => {
     b.disabled = false;
   }
 };
-window.handfield = { V, VOICES, fx, fy, handleHands, get analyser() { return analyser; }, get masterF() { return masterF; }, get grabbed() { return grabbed; }, get selected() { return selected; }, swapPanel, get panel() { return panel; }, KEY, get HS() { return HS; }, get BPM() { return BPM; }, get BELLS() { return BELL_NOTES; }, chordFor, styleW, feelT, pulseHit };   // for debugging in the console
+window.handgroove = { V, VOICES, fx, fy, handleHands, get analyser() { return analyser; }, get masterF() { return masterF; }, get grabbed() { return grabbed; }, get selected() { return selected; }, swapPanel, get panel() { return panel; }, KEY, get HS() { return HS; }, get BPM() { return BPM; }, get BELLS() { return BELL_NOTES; }, chordFor, styleW, feelT, pulseHit };   // for debugging in the console
 addEventListener("keydown", e => {
   if (e.key === "h" || e.key === "H") swapHands = !swapHands;
   if (/^[1-4]$/.test(e.key) && ctx && !e.metaKey && !e.ctrlKey) setPanel(PANELS[+e.key - 1]);

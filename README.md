@@ -1,63 +1,87 @@
 # Handgroove
 
-Your hands steer a live house set in Sonic Pi through the laptop camera.
-Sonic Pi keeps time; the camera only steers, so every change lands on the beat.
+Music you play with your hands, in front of a laptop camera. Everything is synthesized live in the
+browser: no samples, no installs, and the camera image never leaves your computer.
 
-## Files
-
-- `handgroove.rb`: the music (Sonic Pi). Edit it live.
-- `bridge.py`: connects the browser and Sonic Pi. Standard Python, nothing to install.
-- `index.html`: the camera page (hand tracking with Google MediaPipe, all on your laptop).
-
-## First run (about 10 minutes)
-
-1. **Install Sonic Pi** from https://sonic-pi.net (free) and open it.
-2. In Sonic Pi, open **Preferences → IO** and turn on **incoming OSC**
-   (the checkbox name varies by version: "Enable OSC server", "Allow incoming OSC"…).
-   Note the incoming OSC port shown there; it should be **4560**.
-3. Open `handgroove.rb` in any text editor, copy everything, paste it into an empty
-   Sonic Pi buffer and press **Run**. You should hear a groove straight away.
-4. Open **Terminal** and run:
-   ```
-   cd ~/Desktop/LAB/Proceed/builds/handgroove
-   python3 bridge.py
-   ```
-   If macOS offers to install the "command line developer tools", accept; it's free and needed once.
-5. Open **http://localhost:8000** in Chrome, click **Start camera**, allow the camera.
-   The first load needs internet (it downloads the hand model); after that Chrome caches it.
-
-The three dots at the top right should all turn green: bridge, Sonic Pi, camera.
-
-## Playing
-
-| Gesture | Music |
+| File | What it is |
 |---|---|
-| Right hand up / down | Filter sweep on bass and chords |
-| Right hand fist → open | Energy: hats, stab pattern, percussion, rolling bass |
-| Left hand, 1–5 fingers | Scene: intro · groove · breakdown · peak · outro |
-| Left fist, hold | Build: kick out, snare roll, noise riser |
-| Open the fist | Drop into the scene your fingers show, on the next bar |
-| Hands apart / together | Reverb and delay |
-| Move your body | Swing and percussion |
+| `index.html` | The landing page. |
+| **`field.html`** | **Handgroove** itself, the main piece: an ambient/minimal music field played with hand gestures (or the mouse). One self-contained file. |
+| `soundcheck.html` | A sound check for the synthesized 808/909-style kit, 303-style bass and chord stabs, with the macros gestures can drive. |
+| `NOTES.md` | Design notes, credits and ideas. |
+| `EXPLORATION.md` | How the project started (an early version used Sonic Pi; the project is now fully in the browser). |
 
-"Left" and "right" mean the halves of the screen. Your hands can rest out of frame:
-values stay where you left them. If you drop your left hand during a build, it drops automatically after about a second.
+---
 
-**Keyboard backup:** 1–5 scenes · hold Space to build · ↑↓ filter · ←→ energy · [ ] space.
+## Playing Handgroove (`field.html`)
 
-## Changing the music
+### Run it
 
-Everything musical is in `handgroove.rb`. Edit in Sonic Pi and press Run again; the groove keeps going.
+The camera only works when the page is served over `http://localhost` or `https://`, not when the file is double-clicked.
 
-- Tempo: `use_bpm 124`
-- Key and chords: `root_at` and `chord_at`
-- Which parts play in which scene: the table inside `has`
-- Sounds: `sample :bd_haus`, `use_synth :supersaw`, etc. Sonic Pi's Help panel lists them all.
+- **On your Mac:** in Terminal, run
+  ```
+  cd ~/Desktop/LAB/Proceed/builds/handgroove
+  python3 -m http.server 8000
+  ```
+  then open **http://localhost:8000/field.html** in Chrome.
+- **Online:** it runs on GitHub Pages as it is, no server needed. Turn it on in the repository's
+  Settings → Pages → Deploy from a branch → `main` / root. The landing page is then
+  `https://flatfrank.github.io/handgroove/` and the piece is `https://flatfrank.github.io/handgroove/field.html`.
 
-## Troubleshooting
+Click **Start with camera** (or **Mouse only**). The first load needs internet to fetch the hand-tracking model; the sound itself needs nothing.
 
-- **Bridge dot red:** `bridge.py` isn't running, or you opened the file directly; use http://localhost:8000.
-- **Sonic Pi dot red but bridge green:** incoming OSC is off in Sonic Pi's preferences, or the code isn't running.
-- **Music reacts late:** lower `set_sched_ahead_time!` (e.g. 0.1). If audio crackles, raise it (0.3).
-- **Scenes jump around:** keep your left hand flat facing the camera; fingers are counted from the palm side.
-- **"Address already in use":** another bridge is running; close that Terminal window or press Ctrl+C there.
+### Play it
+
+Every sound is a light on the screen. Where it sits is how it plays.
+
+| Gesture | What it does |
+|---|---|
+| **Left hand, a shape** | Chooses a sound: fist = Kick · 1 finger = Ticks · 2 = Sub · 3 = Pad · 4 = Bells. Open hand = nothing, so you can rest. |
+| **Right hand, close your fist** | Grabs the chosen sound. It follows your hand. |
+| **Open the right hand** | Drops it there. It keeps playing that way. |
+| **Drop it past the edge** | Silences it (on the Sound panel) or resets it (on the other panels). |
+| **While holding: push in / pull back** | Depends on the panel (see below). |
+| **While holding: twist your wrist** | Echo trails on the held sound (on the Harmony panel: the key). |
+
+If your hands seem swapped, press **H**. If a hand leaves the camera while holding a sound, the sound goes back to where it was just before; nothing is ever flung or silenced by accident.
+
+### The four panels (keys 1–4, or the tabs at the top right)
+
+| Key | Panel | Left → right | Bottom → top | Push in / pull back |
+|---|---|---|---|---|
+| **1** | **Sound** | sparse → dense (time) | dark → bright (tone) | close and dry → far and washed out (depth) |
+| **2** | **Texture** | smooth → granular (grain) | clean → dusty (crackle, lo-fi) | less → more texture (mix) |
+| **3** | **Style** | loose → locked (groove) | organic → mechanical (material) | louder → quieter (volume) |
+| **4** | **Harmony** | 90 → 130 bpm (tempo) | phrygian → lydian (mood) | drone → 8 chords; twist = key |
+
+**Style** corners: ambient (loose, organic) · organic minimal (locked, organic) · industrial (loose, mechanical) · techno (locked, mechanical), with acid growing into the far top-right corner.
+The groove axis also decides how patterns are made: **loose** = chance (every bar different), **locked** = Euclidean rhythms that repeat; locked bells play a melodic motif that slowly mutates.
+
+**Harmony** is a single light (the key), grabbed with the right fist alone. Changes land on the next bar.
+
+### Mouse and keyboard
+
+Drag a light to move it · scroll on a light: echo · Shift+scroll: depth / mix / volume (depending on the panel) ·
+on the Harmony panel, scroll: key, Shift+scroll: chords · **[ ]** master filter · **1–4** panels · **H** swap hands.
+
+### How it works
+
+- **Sound:** pure Web Audio synthesis. Five voices (kick, ticks, sub, pad, bells), each with an organic and a mechanical version blended by the Style panel, a per-voice echo line, a shared reverb, and a texture stage (grain gate, bit-crush, crackle).
+- **Patterns:** procedural. Density comes from the Sound panel; Euclidean or weighted-chance rhythms from the Style panel; random walks and motifs for the bells; all notes constrained to the current mode, so chance never sounds wrong.
+- **Hands:** Google MediaPipe hand tracking, running locally in the browser.
+- **Clock:** a sample-accurate look-ahead scheduler, so gestures steer while the groove stays on the grid.
+
+---
+
+## Sound check (`soundcheck.html`)
+
+Open it in a browser and press **Play**. Switch 808/909, mute parts, trigger single hits, and move the macros (filter, energy, acid, space, pump, swing, kick pitch, hat decay).
+
+---
+
+## Credits
+
+- Hand tracking: MediaPipe Tasks Vision (Apache 2.0).
+- Hand pose icons: paths from Tabler Icons (MIT, https://tabler.io/icons).
+- Everything else was written for this project.

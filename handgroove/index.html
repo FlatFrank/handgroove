@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Handgroove</title>
+<style>
+/* One screen: your mirrored body as a duotone stage, hands drawn on top, the set's state along the bottom. */
+:root{
+  --bg:#07080b; --ink:#f2f2f5; --dim:#8a8f9e; --scene:#ff3d7f; --sound:#3de0ff;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:14px/1.4 var(--mono);overflow:hidden}
+[hidden]{display:none!important}
+#stage{position:fixed;inset:0;background:var(--bg);isolation:isolate}
+video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1);
+  filter:grayscale(1) contrast(1.7) brightness(.5)}
+#tint{position:absolute;inset:0;background:var(--scene);mix-blend-mode:color;opacity:.85;transition:background-color .8s}
+#flash{position:absolute;inset:0;background:var(--scene);mix-blend-mode:screen;opacity:0;transition:background-color .8s}
+#draw{position:absolute;inset:0;width:100%;height:100%}
+#top{position:absolute;top:16px;left:24px;right:24px;display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px 24px;
+  color:var(--dim);font-size:12px;letter-spacing:.08em;text-transform:uppercase}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#555;margin-right:6px;vertical-align:1px}
+.dot.ok{background:#3dff8a}
+#hud{position:absolute;left:24px;right:24px;bottom:24px;display:flex;flex-wrap:wrap;gap:24px 40px;align-items:flex-end;pointer-events:none}
+#scene{font-size:clamp(44px,10vw,132px);font-weight:800;letter-spacing:-.04em;line-height:.82;text-transform:uppercase;color:var(--ink)}
+#state{font-size:15px;font-weight:700;margin-top:10px;letter-spacing:.04em}
+#state.build{color:var(--scene)}
+.meters{display:grid;grid-template-columns:auto 170px;gap:7px 12px;align-items:center;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim)}
+.meter{height:6px;background:rgba(255,255,255,.14)}
+.meter i{display:block;height:100%;width:50%;background:var(--ink)}
+#beats{display:flex;gap:6px;margin-top:10px}
+#beats b{width:14px;height:14px;border:1.5px solid var(--dim)}
+#beats b.on{background:var(--scene);border-color:var(--scene)}
+#start{position:absolute;inset:0;display:grid;place-items:center;background:var(--bg);overflow:auto;padding:24px}
+#start .box{max-width:620px;display:flex;flex-direction:column;gap:18px}
+#start h1{font-size:clamp(40px,8vw,72px);margin:0;letter-spacing:-.04em;line-height:.9}
+#start h1 span{color:var(--scene)}
+#start p{margin:0;color:var(--dim);max-width:60ch}
+table{border-collapse:collapse;font-size:13px}
+td{padding:5px 14px 5px 0;vertical-align:top;border-top:1px solid #20232b}
+td:first-child{color:var(--ink);white-space:nowrap}
+td:last-child{color:var(--dim)}
+button{font:inherit;font-size:15px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;padding:14px 24px;
+  background:var(--scene);color:#000;border:0;cursor:pointer;align-self:flex-start}
+button:disabled{opacity:.5;cursor:wait}
+button:focus-visible{outline:2px solid var(--ink);outline-offset:3px}
+#msg{color:var(--scene);min-height:1.4em}
+#help{position:absolute;top:44px;right:24px;color:var(--dim);font-size:11px;text-align:right;line-height:1.7}
+@media (prefers-reduced-motion:reduce){#tint,#flash{transition:none}}
+</style>
+</head>
+<body>
+<div id="stage">
+  <video id="cam" playsinline muted></video>
+  <div id="tint"></div>
+  <div id="flash"></div>
+  <canvas id="draw"></canvas>
+
+  <div id="top">
+    <span>Handgroove · 124 BPM · A minor</span>
+    <span><span class="dot" id="dBridge"></span>bridge &nbsp; <span class="dot" id="dSP"></span>Sonic Pi &nbsp; <span class="dot" id="dCam"></span>camera</span>
+  </div>
+  <div id="help">keys: 1–5 scene · hold space build<br>↑↓ filter · ←→ energy · [ ] space</div>
+
+  <div id="hud">
+    <div>
+      <div id="scene">groove</div>
+      <div id="state">hold a left fist to build</div>
+      <div id="beats"><b></b><b></b><b></b><b></b></div>
+    </div>
+    <div class="meters">
+      <span>filter</span><div class="meter"><i id="mCut"></i></div>
+      <span>energy</span><div class="meter"><i id="mEnergy"></i></div>
+      <span>space</span><div class="meter"><i id="mSpace"></i></div>
+      <span>move</span><div class="meter"><i id="mMove"></i></div>
+    </div>
+  </div>
+
+  <div id="start">
+    <div class="box">
+      <h1>Hand<span>groove</span></h1>
+      <p>Your hands steer a house set in Sonic Pi. Sonic Pi keeps the time, so every change lands on the beat.
+        The camera stays on this laptop; nothing is uploaded.</p>
+      <table>
+        <tr><td>Right hand, up / down</td><td>Filter sweep on bass and chords</td></tr>
+        <tr><td>Right hand, fist → open</td><td>Energy: hats, stab pattern, percussion, rolling bass</td></tr>
+        <tr><td>Left hand, 1–5 fingers</td><td>Scene: intro · groove · breakdown · peak · outro</td></tr>
+        <tr><td>Left fist, hold</td><td>Build: kick out, snare roll, noise riser</td></tr>
+        <tr><td>Open the fist</td><td>Drop into the scene your fingers show, on the next bar</td></tr>
+        <tr><td>Hands apart / together</td><td>Reverb and delay</td></tr>
+        <tr><td>Move your body</td><td>Swing and percussion</td></tr>
+      </table>
+      <p>Left and right mean the halves of the screen. With one hand up, the side it's on decides what it controls.</p>
+      <button id="go">Start camera</button>
+      <div id="msg" role="status"></div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+const MP = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14";
+const MODEL = "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task";
+const SCENES = [["intro","#5b8cff"],["groove","#ff3d7f"],["breakdown","#9b6bff"],["peak","#ffb000"],["outro","#20d4a0"]];
+const BONES = [[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[5,9],[9,10],[10,11],[11,12],
+  [9,13],[13,14],[14,15],[15,16],[13,17],[17,18],[18,19],[19,20],[0,17]];
+
+const $ = s => document.querySelector(s);
+const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+const video = $("#cam"), canvas = $("#draw"), ctx = canvas.getContext("2d");
+
+// S = what we send to Sonic Pi. T = targets for the smoothed values.
+const S = { cut: .55, energy: .45, scene: 1, kick: 1, space: .15, move: .2 };
+const T = { cut: .55, energy: .45, space: .15 };
+let hands = null, running = false, lastVideoTime = -1;
+let leftSeen = 0, candidate = -1, candidateSince = 0, manualKick = false;
+let view = { left: null, right: null };
+
+/* ---------- hand features ---------- */
+const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+const palm = L => [0, 5, 9, 13, 17].reduce((p, i) => ({ x: p.x + L[i].x / 5, y: p.y + L[i].y / 5 }), { x: 0, y: 0 });
+const palmSize = L => dist(L[0], L[9]);
+
+function openness(L) {          // 0 = fist, 1 = fully spread
+  const s = palmSize(L);
+  const avg = [8, 12, 16, 20].reduce((t, i) => t + dist(L[i], L[0]), 0) / 4 / s;
+  return clamp((avg - 1.0) / 0.9);
+}
+
+function fingerCount(L) {
+  let n = 0;
+  for (const [tip, pip] of [[8, 6], [12, 10], [16, 14], [20, 18]])
+    if (dist(L[tip], L[0]) > dist(L[pip], L[0]) * 1.12) n++;
+  if (dist(L[4], L[5]) > palmSize(L) * 0.65) n++;   // thumb out, away from the index knuckle
+  return n;
+}
+
+function handle(list, now) {
+  const hs = list.map(L => { const c = palm(L); return { L, x: 1 - c.x, y: c.y }; }); // x mirrored = screen side
+  let left = null, right = null;
+  if (hs.length >= 2) { hs.sort((a, b) => a.x - b.x); left = hs[0]; right = hs[hs.length - 1]; }
+  else if (hs.length === 1) { if (hs[0].x > 0.5) right = hs[0]; else left = hs[0]; }
+
+  if (right) {
+    T.cut = clamp((0.85 - right.y) / 0.7);
+    T.energy = openness(right.L);
+  }
+  if (left) {
+    leftSeen = now;
+    const n = fingerCount(left.L);
+    left.n = n;
+    if (n !== candidate) { candidate = n; candidateSince = now; }
+    // wait until the count is steady, so passing through numbers while closing the hand doesn't jump scenes
+    if (now - candidateSince > (n === 0 ? 220 : 350)) {
+      if (n === 0) S.kick = 0;
+      else { S.scene = n - 1; S.kick = 1; }
+    }
+  }
+  if (left && right) T.space = clamp((Math.abs(right.x - left.x) - 0.2) / 0.55);
+  view = { left, right };
+}
+
+/* ---------- body motion (tiny frame difference) ---------- */
+const mc = document.createElement("canvas"); mc.width = 48; mc.height = 36;
+const mx = mc.getContext("2d", { willReadFrequently: true });
+let prev = null;
+function motion() {
+  mx.drawImage(video, 0, 0, 48, 36);
+  const d = mx.getImageData(0, 0, 48, 36).data, cur = new Float32Array(48 * 36);
+  let sum = 0;
+  for (let i = 0; i < cur.length; i++) {
+    cur[i] = (d[i * 4] + d[i * 4 + 1] + d[i * 4 + 2]) / 3;
+    if (prev) sum += Math.abs(cur[i] - prev[i]);
+  }
+  prev = cur;
+  S.move += (clamp(sum / cur.length / 255 * 10) - S.move) * 0.05;
+}
+
+/* ---------- talk to the bridge ---------- */
+let bridgeOK = false, inflight = false, lastSonic = -1e9;
+setInterval(async () => {
+  if (inflight) return;
+  inflight = true;
+  try {
+    const v = [S.cut, S.energy, S.scene, S.kick, S.space, S.move].map(x => Math.round(x * 1000) / 1000);
+    const r = await fetch("/ctrl", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ v }) });
+    bridgeOK = r.ok;
+  } catch { bridgeOK = false; }
+  inflight = false;
+}, 50);
+
+const beats = [...document.querySelectorAll("#beats b")];
+if (location.protocol.startsWith("http")) {
+  const es = new EventSource("/events");
+  es.onmessage = e => {
+    const m = JSON.parse(e.data);
+    lastSonic = performance.now();
+    if (m.addr === "/proceed/beat") beats.forEach((b, i) => b.classList.toggle("on", i === m.args[0]));
+    if (m.addr === "/proceed/kick") pulse();
+  };
+}
+function pulse() {
+  $("#flash").animate([{ opacity: 0.12 + 0.4 * S.energy }, { opacity: 0 }], { duration: 230, easing: "ease-out" });
+}
+
+/* ---------- keyboard (works without the camera too) ---------- */
+addEventListener("keydown", e => {
+  if (/^[1-5]$/.test(e.key)) { S.scene = +e.key - 1; S.kick = 1; }
+  else if (e.code === "Space") { e.preventDefault(); S.kick = 0; manualKick = true; }
+  else if (e.key === "ArrowUp") T.cut = clamp(T.cut + .05);
+  else if (e.key === "ArrowDown") T.cut = clamp(T.cut - .05);
+  else if (e.key === "ArrowRight") T.energy = clamp(T.energy + .05);
+  else if (e.key === "ArrowLeft") T.energy = clamp(T.energy - .05);
+  else if (e.key === "]") T.space = clamp(T.space + .05);
+  else if (e.key === "[") T.space = clamp(T.space - .05);
+});
+addEventListener("keyup", e => { if (e.code === "Space") { S.kick = 1; manualKick = false; } });
+
+/* ---------- drawing ---------- */
+function resize() {
+  const r = devicePixelRatio || 1;
+  canvas.width = innerWidth * r; canvas.height = innerHeight * r;
+  ctx.setTransform(r, 0, 0, r, 0, 0);
+}
+addEventListener("resize", resize); resize();
+
+function toScreen(p) {          // normalized camera coords -> mirrored, object-fit:cover screen coords
+  const vw = video.videoWidth || 16, vh = video.videoHeight || 9;
+  const k = Math.max(innerWidth / vw, innerHeight / vh);
+  const dx = (innerWidth - vw * k) / 2, dy = (innerHeight - vh * k) / 2;
+  return [innerWidth - (p.x * vw * k + dx), p.y * vh * k + dy];
+}
+
+function drawHand(h, color) {
+  ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = 3; ctx.lineCap = "round";
+  ctx.beginPath();
+  for (const [a, b] of BONES) { const [x1, y1] = toScreen(h.L[a]), [x2, y2] = toScreen(h.L[b]); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); }
+  ctx.stroke();
+  for (const p of h.L) { const [x, y] = toScreen(p); ctx.beginPath(); ctx.arc(x, y, 3.5, 0, 7); ctx.fill(); }
+}
+
+function draw() {
+  ctx.clearRect(0, 0, innerWidth, innerHeight);
+  ctx.font = "700 13px ui-monospace, Menlo, monospace";
+  const sceneColor = SCENES[S.scene][1];
+  if (view.right) {
+    drawHand(view.right, "#3de0ff");
+    const [, y] = toScreen(palm(view.right.L));
+    ctx.fillStyle = "#3de0ff"; ctx.globalAlpha = .5;
+    ctx.fillRect(innerWidth / 2, y, innerWidth / 2, 1.5);
+    ctx.globalAlpha = 1;
+    ctx.fillText(`FILTER ${Math.round(S.cut * 100)}  ENERGY ${Math.round(S.energy * 100)}`, innerWidth / 2 + 12, y - 8);
+  }
+  if (view.left) {
+    drawHand(view.left, sceneColor);
+    const [x, y] = toScreen(view.left.L[0]);
+    ctx.fillStyle = sceneColor;
+    ctx.font = "800 44px ui-monospace, Menlo, monospace";
+    ctx.fillText(view.left.n === 0 ? "✊" : String(view.left.n), x - 14, y + 52);
+  }
+}
+
+function hud() {
+  const [name, color] = SCENES[S.scene];
+  document.documentElement.style.setProperty("--scene", color);
+  $("#scene").textContent = name;
+  const st = $("#state");
+  st.textContent = S.kick === 0 ? "building · open your hand to drop" : "hold a left fist to build";
+  st.classList.toggle("build", S.kick === 0);
+  $("#mCut").style.width = S.cut * 100 + "%";
+  $("#mEnergy").style.width = S.energy * 100 + "%";
+  $("#mSpace").style.width = S.space * 100 + "%";
+  $("#mMove").style.width = S.move * 100 + "%";
+  $("#dBridge").classList.toggle("ok", bridgeOK);
+  $("#dSP").classList.toggle("ok", performance.now() - lastSonic < 2500);
+  $("#dCam").classList.toggle("ok", running);
+}
+
+/* ---------- main loop ---------- */
+function frame(now) {
+  if (running && video.readyState >= 2 && video.currentTime !== lastVideoTime) {
+    lastVideoTime = video.currentTime;
+    const res = hands.detectForVideo(video, now);
+    handle(res.landmarks || [], now);
+    motion();
+  }
+  for (const k of ["cut", "energy", "space"]) S[k] += (T[k] - S[k]) * 0.2;
+  // left hand gone for a moment while building: drop anyway, so a build never gets stuck
+  if (S.kick === 0 && !manualKick && now - leftSeen > 1200) S.kick = 1;
+  draw(); hud();
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+/* ---------- start ---------- */
+const msg = t => $("#msg").textContent = t;
+if (!location.protocol.startsWith("http"))
+  msg("Open this page through the bridge: run bridge.py, then go to http://localhost:8000");
+
+$("#go").onclick = async () => {
+  $("#go").disabled = true;
+  try {
+    msg("Loading the hand-tracking model…");
+    const { FilesetResolver, HandLandmarker } = await import(`${MP}/vision_bundle.mjs`);
+    const fileset = await FilesetResolver.forVisionTasks(`${MP}/wasm`);
+    hands = await HandLandmarker.createFromOptions(fileset, {
+      baseOptions: { modelAssetPath: MODEL, delegate: "GPU" },
+      runningMode: "VIDEO", numHands: 2,
+      minHandDetectionConfidence: 0.6, minHandPresenceConfidence: 0.5, minTrackingConfidence: 0.5
+    });
+  } catch (e) {
+    console.error(e);
+    msg("Couldn't load the hand model. The first load needs internet. Keyboard controls still work.");
+    $("#go").disabled = false; $("#go").textContent = "Try again";
+    return;
+  }
+  try {
+    msg("Asking for the camera…");
+    video.srcObject = await navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720 }, audio: false });
+    await video.play();
+    running = true;
+    $("#start").hidden = true;
+  } catch (e) {
+    console.error(e);
+    msg("Camera access was blocked. Allow it in Chrome's address bar, then try again.");
+    $("#go").disabled = false; $("#go").textContent = "Try again";
+  }
+};
+</script>
+</body>
+</html>

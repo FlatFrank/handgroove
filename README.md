@@ -28,13 +28,14 @@ Press **1** to **5** (or click the tabs at the top right). Every sound has a pla
 | **1** | **Sound** | sparse → dense | dark → bright | near and dry → far and washed out | echo |
 | **2** | **Texture** | smooth → granular | clean → dusty | less → more texture | echo |
 | **3** | **Style** | loose → locked | organic → industrial | louder → quieter | echo |
-| **4** | **Harmony** | slower → faster | dark mood → bright mood | one chord → many chords | key |
+| **4** | **Harmony** | (free) | dark mood → bright mood | one chord → many chords | key |
 | **5** | **Rhythm** | on the beat → off the beat | even → odd groups | frozen → evolving | interlock |
 
 - **Style**: organic is wood, skin and breath; industrial is metal, machines and grit. The far top-right corner
   (most locked and most industrial) is the **acid zone**: resonance and sliding basslines grow as you push into it.
   Loose patterns change every bar; locked patterns repeat.
 - **Harmony** has a single light, the key. Grab it with your right fist alone. Changes land on the next bar.
+  Moving it sideways does nothing, so you can't change the tempo by accident.
 - **Rhythm**: the sounds start on the left edge with free patterns. Bring one into the field to give it a rhythm of its own.
   Left = on the beat, right = off the beat (syncopated). Bottom = even groups (4+4+4+4), top = odd ones (3+3+2, 5+3…).
   The ring of 16 dots around each sound is its bar; the lit dot is the step playing now. How many notes it plays still
@@ -47,6 +48,7 @@ Press **1** to **5** (or click the tabs at the top right). Every sound has a pla
 
 - **Drag** a light to move it.
 - **Scroll** on a light: echo · **Shift + scroll**: the push/pull control of the current panel.
+- **Tempo**: **↑ / ↓** arrow keys, 1 BPM per press; **Shift + ↑ / ↓** for 10 BPM (60–180). It eases to the new speed.
 - On the Harmony panel: scroll changes the key, Shift + scroll the number of chords.
 - On the Rhythm panel: scroll changes the interlock, Shift + scroll the mutation.
 - **1–5** panels · **0** help · **[ ]** overall filter · **H** if your hands seem swapped.

@@ -13,7 +13,7 @@ An early version steered a set in Sonic Pi; it was replaced by browser synthesis
   The left hand chooses (fist, 1–4 fingers; open hand = nothing), the right fist grabs, opening drops,
   past the edge silences or resets. Push/pull and wrist twist add a third and fourth dimension while holding.
 - **Five panels (keys 1–5).** Sound (time × tone, depth, echo) · Texture (grain × dust, mix) ·
-  Style (loose↔locked × organic↔industrial, acid zone in the far corner, volume) · Harmony (tempo × mode, key, chords) ·
+  Style (loose↔locked × organic↔industrial, acid zone in the far corner, volume) · Harmony (mode, key, chords; tempo is on the ↑ ↓ keys so it can't change by accident) ·
   Rhythm (syncopation × grouping, mutation, interlock).
 - **Procedural patterns.** Density comes from the Sound panel. The groove axis decides how patterns are made:
   locked = Euclidean rhythms that repeat; loose = chance weighted by the beat. Bells walk randomly when loose and

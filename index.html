@@ -4,97 +4,1289 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Handgroove</title>
-<meta name="description" content="Music you play with your hands in front of a laptop camera. Synthesized live in the browser.">
 <style>
-/* Landing page: the same night instrument as the piece. Drifting lights behind, the piece in front. */
+/* One field, Kaoss-pad style: X = time (sparse → dense), Y = tone (dark → bright).
+   Sounds are lights you pick up and put down. Deliberately single dark theme: it's a night instrument. */
 :root{
-  --bg:#05060a; --panel:#0c0e15; --line:#1f2330; --ink:#eceef4; --dim:#848a9b;
-  --kick:#ff7a66; --ticks:#ffd166; --sub:#5aa9ff; --pad:#b48cff; --bells:#7dffcf;
+  --bg:#05060a; --ink:#eceef4; --dim:#7d8394; --faint:#1a1d27;
   --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
   color-scheme:dark;
 }
 *{box-sizing:border-box}
-html,body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 var(--mono)}
-#lights{position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none}
-main{position:relative;z-index:1;max-width:980px;margin:0 auto;padding-inline:20px;padding-block:72px 48px;display:flex;flex-direction:column;gap:40px}
-h1{font-size:clamp(46px,10vw,104px);line-height:.88;letter-spacing:-.05em;margin:0;font-weight:800}
-h1 span{color:var(--pad)}
-.lede{color:var(--dim);max-width:58ch;margin:16px 0 0;font-size:16px}
-.pieces{display:grid;grid-template-columns:minmax(0,1fr);max-width:720px;gap:16px}
-.piece{background:rgba(12,14,21,.82);border:1px solid var(--line);padding:22px;display:flex;flex-direction:column;gap:12px;min-width:0;backdrop-filter:blur(6px)}
-.piece.main{border-color:#3a2f55}
-.piece h2{margin:0;font-size:24px;letter-spacing:-.02em}
-.piece.main h2{font-size:clamp(28px,5vw,40px)}
-.piece p{margin:0;color:var(--dim);max-width:62ch}
-.tags{display:flex;flex-wrap:wrap;gap:6px}
-.tags span{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);border:1px solid var(--line);padding:3px 8px}
-.go{align-self:flex-start;display:inline-block;margin-top:4px;padding:12px 20px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;text-decoration:none;font-size:14px;
-  border:1px solid var(--line);color:var(--ink);background:#12141c}
-.go:hover{border-color:var(--dim)}
-.main .go{background:var(--pad);border-color:var(--pad);color:#000}
-.go:focus-visible{outline:2px solid var(--ink);outline-offset:3px}
-.voices{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12px;color:var(--dim)}
-.voices i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:0}
-footer{color:var(--dim);font-size:12px;display:flex;flex-wrap:wrap;gap:6px 18px;border-top:1px solid var(--line);padding-top:18px}
-footer a{color:var(--ink)}
-@media (prefers-reduced-motion:reduce){#lights{display:none}}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:13px/1.45 var(--mono);overflow:hidden}
+[hidden]{display:none!important}
+#field{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+#top{position:fixed;top:14px;left:20px;right:20px;display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px 20px;
+  color:var(--dim);font-size:11px;letter-spacing:.12em;text-transform:uppercase;pointer-events:none}
+#top b{color:var(--ink);font-weight:700}
+#tabs{display:inline-flex;gap:4px;margin-left:12px;pointer-events:auto}
+#tabs button{font-size:11px;padding:5px 9px;letter-spacing:.08em;background:#12141c;border-color:#2a2e3b;color:var(--dim)}
+#tabs button kbd{font:inherit;opacity:.6;margin-right:5px}
+#tabs button.on{color:var(--ink);border-color:var(--ink)}
+body.tex #tabs button.on{border-color:#c9a25a;color:#f0d8a8}
+body.sty #tabs button.on{border-color:#a07ad6;color:#e2d0ff}
+body.har #tabs button.on{border-color:#5fe0b8;color:#c9fbe9}
+body.rhy #tabs button.on{border-color:#ff9f5a;color:#ffd6b0}
+body.rhy #top b{color:#ffd6b0}
+body.tex #top b{color:#f0d8a8}
+body.sty #top b{color:#e2d0ff}
+body.har #top b{color:#c9fbe9}
+#hint{position:fixed;left:50%;top:44px;transform:translateX(-50%);color:var(--ink);font-size:13px;letter-spacing:.04em;
+  text-align:center;pointer-events:none;opacity:.85;max-width:90vw}
+#legend{position:fixed;left:20px;right:20px;bottom:14px;display:flex;flex-wrap:wrap;justify-content:center;gap:6px 18px;pointer-events:none}
+.lv{display:flex;align-items:center;gap:8px;color:var(--dim);font-size:12px;padding:4px 8px;border:1px solid transparent}
+.lv i{width:10px;height:10px;border-radius:50%;border:1.5px solid currentColor}
+.lv.on i{background:currentColor}
+.lv.sel{border-color:currentColor}
+.lv span{color:var(--ink)}
+.lv em{font-style:normal;opacity:.85;display:inline-flex}
+#help{position:fixed;inset:0;display:grid;place-items:center;background:rgba(5,6,10,.9);overflow:auto;padding:24px;z-index:5}
+#help .box{max-width:720px;display:flex;flex-direction:column;gap:14px}
+#help h1{font-size:clamp(32px,6vw,56px);margin:0;letter-spacing:-.045em;line-height:.9;font-weight:800}
+#help h1 span{color:#b48cff}
+#help h2{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);margin:8px 0 0;font-weight:600}
+#help p{margin:0;color:var(--dim);max-width:66ch}
+#help table{border-collapse:collapse;font-size:12.5px;width:100%}
+#help td,#help th{padding:5px 12px 5px 0;vertical-align:top;border-top:1px solid #1d2130;text-align:left}
+#help th{color:var(--dim);font-weight:600}
+#help td:first-child{color:var(--ink);white-space:nowrap}
+#help td{color:#b9bdca}
+#help kbd{font:inherit;border:1px solid #2a2e3b;padding:0 5px;color:var(--ink)}
+#help .close{color:var(--dim);font-size:12px}
+.tablewrap{overflow-x:auto}
+#unlock{position:fixed;left:50%;bottom:58px;transform:translateX(-50%);padding:10px 16px;border:1px solid #b48cff;color:#e2d0ff;
+  background:rgba(12,14,21,.9);font-size:13px;letter-spacing:.04em;pointer-events:none;z-index:4}
 </style>
 </head>
 <body>
-<canvas id="lights" aria-hidden="true"></canvas>
-<main>
-  <header>
+<canvas id="field" aria-label="Sound field. Each light is a sound; its position sets how it plays."></canvas>
+<video id="cam" playsinline muted hidden></video>
+
+<div id="top">
+  <span><b>Handgroove</b> · <span id="tempoTxt">116 bpm · D aeolian</span></span>
+  <span><span id="status">mouse</span> <span id="tabs" role="tablist" aria-label="Panels">
+    <button type="button" data-p="sound" class="on"><kbd>1</kbd>sound</button><button type="button" data-p="texture"><kbd>2</kbd>texture</button><button type="button" data-p="style"><kbd>3</kbd>style</button><button type="button" data-p="harmony"><kbd>4</kbd>harmony</button><button type="button" data-p="rhythm"><kbd>5</kbd>rhythm</button><button type="button" id="helpBtn"><kbd>0</kbd>help</button>
+  </span></span>
+</div>
+<div id="hint"></div>
+<div id="legend"></div>
+
+<div id="unlock" hidden>click anywhere or press any key to start the sound</div>
+
+<div id="help" hidden role="dialog" aria-label="How to play">
+  <div class="box">
     <h1>Hand<span>groove</span></h1>
-    <p class="lede">Music you play with your hands, in front of a laptop camera. Every sound is synthesized live
-      in your browser; the camera image never leaves your computer.</p>
-  </header>
+    <p>Every sound is a light on the screen; where it sits is how it plays. Play with your hands in front of the camera,
+      or drag the lights with the mouse. Nothing leaves your device.</p>
+    <h2>Your hands</h2>
+    <div class="tablewrap"><table>
+      <tr><td>Left hand: a shape</td><td>chooses a sound · fist kick · 1 finger ticks · 2 sub · 3 pad · 4 bells · open hand = nothing</td></tr>
+      <tr><td>Right hand: close the fist</td><td>grabs the chosen sound; it follows your hand</td></tr>
+      <tr><td>Open the right hand</td><td>drops it there, and it keeps playing that way</td></tr>
+      <tr><td>Past the edge</td><td>fades it out (sound panel) or resets it (other panels); sounds you bring in fade in</td></tr>
+      <tr><td>While holding</td><td>push in / pull back, and twist your wrist like a knob</td></tr>
+    </table></div>
+    <h2>Panels · keys 1–5</h2>
+    <div class="tablewrap"><table>
+      <tr><th></th><th>left → right</th><th>bottom → top</th><th>push / pull</th><th>twist</th></tr>
+      <tr><td><kbd>1</kbd> sound</td><td>sparse → dense</td><td>dark → bright</td><td>near → far</td><td>echo</td></tr>
+      <tr><td><kbd>2</kbd> texture</td><td>smooth → granular</td><td>clean → dusty</td><td>less → more</td><td>echo</td></tr>
+      <tr><td><kbd>3</kbd> style</td><td>loose → locked</td><td>organic → industrial</td><td>louder → quieter</td><td>echo</td></tr>
+      <tr><td><kbd>4</kbd> harmony</td><td>slower → faster</td><td>dark → bright mood</td><td>1 → 8 chords</td><td>key</td></tr>
+      <tr><td><kbd>5</kbd> rhythm</td><td>on → off the beat</td><td>even → odd groups</td><td>frozen → evolving</td><td>interlock</td></tr>
+    </table></div>
+    <p>Style: loose patterns change every bar, locked ones repeat; organic sounds are wood, skin and breath, industrial ones metal and machines.
+      Push a sound into the far locked-and-industrial corner for acid.
+      Nothing changes at once: the sound glides to wherever you put it over a few seconds, rhythms move a note or two per bar,
+      and key and tempo changes ease in.
+      Harmony has a single light, the key, grabbed with the right fist alone.
+      Rhythm: bring a sound in to shape its pattern (the ring of dots around it is its bar of 16 steps). Pull back and it keeps evolving;
+      push in and it freezes. Twist for interlock: the parts start to listen to each other and leave room. Drop it past the edge for free patterns again.</p>
+    <h2>Mouse and keys</h2>
+    <p>Drag a light · scroll on it: echo · shift+scroll: the push/pull control · <kbd>[</kbd> <kbd>]</kbd> overall filter ·
+      <kbd>H</kbd> if your hands seem swapped · <kbd>0</kbd> this help</p>
+    <p class="close">Press <kbd>0</kbd> or <kbd>Esc</kbd>, or click anywhere, to close.</p>
+  </div>
+</div>
 
-  <section class="pieces" aria-label="Play">
-    <article class="piece main">
-      <div class="tags"><span>camera or mouse</span><span>nothing to install</span><span>ambient · minimal</span></div>
-      <h2>The field</h2>
-      <p>Five sounds float on a field like lights. Your left hand chooses one by its shape, your right hand grabs it
-        and places it. Where it sits is how it plays. Four panels (sound, texture, style, harmony) reshape it all,
-        while the patterns write themselves.</p>
-      <div class="voices">
-        <span><i style="background:var(--kick)"></i>kick</span><span><i style="background:var(--ticks)"></i>ticks</span>
-        <span><i style="background:var(--sub)"></i>sub</span><span><i style="background:var(--pad)"></i>pad</span>
-        <span><i style="background:var(--bells)"></i>bells</span>
-      </div>
-      <a class="go" href="field.html">Play Handgroove</a>
-    </article>
+<script type="module">
+/* =====================================================================
+   VOICES · six sounds, one shared grammar: x = time, y = tone
+   ===================================================================== */
+const VOICES = [
+  { id: "kick", z: 0.05, echo: 0,  name: "Kick",  pose: "✊", color: "#ff7a66", x: .30, y: .35, active: false, level: .9  },
+  { id: "ticks", z: 0.3, echo: 0.25, name: "Ticks", pose: "1",  color: "#ffd166", x: .55, y: .70, active: false, level: .55 },
+  { id: "sub", z: 0, echo: 0,   name: "Sub",   pose: "2",  color: "#5aa9ff", x: .18, y: .22, active: true,  level: .55 },
+  { id: "pad", z: 0.45, echo: 0.1,   name: "Pad",   pose: "3",  color: "#b48cff", x: .22, y: .52, active: true,  level: .5  },
+  { id: "bells", z: 0.55, echo: 0.45, name: "Bells", pose: "4",  color: "#7dffcf", x: .62, y: .62, active: false, level: .32 },
+];
+const V = Object.fromEntries(VOICES.map(v => [v.id, v]));
 
-
-  </section>
-
-  <footer>
-    <span>Source: <a href="https://github.com/FlatFrank/handgroove">github.com/FlatFrank/handgroove</a></span>
-    <span>Hand tracking: MediaPipe · Icons: Tabler Icons</span>
-    <span>Best in Chrome on a laptop</span>
-  </footer>
-</main>
-
-<script>
-// five drifting lights in the background, one per voice
-const cv = document.getElementById("lights"), g = cv.getContext("2d");
-const cols = ["#ff7a66", "#ffd166", "#5aa9ff", "#b48cff", "#7dffcf"];
-let W, H;
-const dots = cols.map((c, i) => ({ c, x: Math.random(), y: Math.random(), a: Math.random() * 6.28, s: .00012 + i * .00003, r: 70 + i * 18 }));
-function size() { const r = devicePixelRatio || 1; W = innerWidth; H = innerHeight; cv.width = W * r; cv.height = H * r; g.setTransform(r, 0, 0, r, 0, 0); }
-addEventListener("resize", size); size();
-function draw(t) {
-  g.clearRect(0, 0, W, H);
-  for (const d of dots) {
-    d.a += .002; d.x = (d.x + Math.cos(d.a) * d.s + 1) % 1; d.y = (d.y + Math.sin(d.a * .7) * d.s + 1) % 1;
-    const x = d.x * W, y = d.y * H, pulse = 1 + Math.sin(t / 900 + d.r) * .15;
-    const grad = g.createRadialGradient(x, y, 0, x, y, d.r * 2.4 * pulse);
-    grad.addColorStop(0, d.c + "33"); grad.addColorStop(1, d.c + "00");
-    g.fillStyle = grad; g.beginPath(); g.arc(x, y, d.r * 2.4 * pulse, 0, Math.PI * 2); g.fill();
-    g.fillStyle = d.c; g.globalAlpha = .7; g.beginPath(); g.arc(x, y, 4, 0, Math.PI * 2); g.fill(); g.globalAlpha = 1;
-  }
-  requestAnimationFrame(draw);
+let BPM = 116, STEP = 60 / BPM / 4;                     // tempo follows the KEY light (harmony panel)
+// Harmony: modes from dark to bright, chord progressions as scale degrees, keys walked in fifths
+const MODES = [["phrygian", [0, 1, 3, 5, 7, 8, 10]], ["aeolian", [0, 2, 3, 5, 7, 8, 10]], ["dorian", [0, 2, 3, 5, 7, 9, 10]],
+               ["mixolydian", [0, 2, 4, 5, 7, 9, 10]], ["lydian", [0, 2, 4, 6, 7, 9, 11]]];
+const MODE_MOOD = ["dark · tense", "melancholic", "soulful", "warm · open", "bright · floating"];
+const PROGS = [[0], [0, 5], [0, 5, 2, 6], [0, 5, 2, 6, 3, 0, 4, 6]];      // drone → long progression
+const PROG_NAMES = ["drone", "2 chords", "4 chords", "8 chords"];
+const FIFTHS = [0, 7, 2, 9, 4, 11, 6, 1, 8, 3, 10, 5];
+const NOTE_NAMES = ["C", "C♯", "D", "E♭", "E", "F", "F♯", "G", "A♭", "A", "B♭", "B"];
+const KEY_HOME = { x: .65, y: .3, fifth: 2, motion: .6 };                 // 116 bpm · D aeolian · 4 chords
+const KEY = { id: "key", name: "Key", color: "#5fe0b8", active: true, pulse: 0, trail: [], ...KEY_HOME };
+let HS = { key: 2, mode: 1, prog: 2 };                                     // the harmony actually playing
+let BELL_NOTES = [];
+function harmonyTarget() {
+  return { key: FIFTHS[((KEY.fifth % 12) + 12) % 12], mode: Math.min(4, Math.floor(Math.max(0, Math.min(1, KEY.y)) * 5)),
+           prog: Math.min(3, Math.floor(Math.max(0, Math.min(1, KEY.motion)) * 4)) };
 }
-requestAnimationFrame(draw);
+function buildBells() {                                  // a pentatonic-like subset of the mode (degrees 1, 3, 4, 5, 7)
+  const sc = MODES[HS.mode][1], pcs = [0, 2, 3, 4, 6].map(d => (sc[d] + HS.key) % 12);
+  BELL_NOTES = []; for (let n = 50; n <= 98; n++) if (pcs.includes(n % 12)) BELL_NOTES.push(n);
+  bellIdx = Math.min(bellIdx, BELL_NOTES.length - 1);
+}
+function chordFor(pos) {                                 // stacked thirds (7th + 9th) on the progression's degree
+  const sc = MODES[HS.mode][1], prog = PROGS[HS.prog], d = prog[pos % prog.length];
+  const pitch = k => 48 + HS.key + sc[k % 7] + 12 * Math.floor(k / 7);
+  let root = 36 + HS.key + sc[d % 7]; if (root > 43) root -= 12;
+  return { root, chord: [d, d + 2, d + 4, d + 6, d + 8].map(pitch) };
+}
+const mtof = n => 440 * Math.pow(2, (n - 69) / 12);
+const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+const TEX_HOME = [[.06, .07], [.17, .07], [.06, .18], [.17, .18], [.115, .125]];
+const STY_HOME = [[.08, .08], [.2, .08], [.08, .2], [.2, .2], [.14, .14]];   // everything starts ambient (loose + mild)
+VOICES.forEach((v, i) => {
+  v.pulse = 0; v.trail = []; v.tmix = 1; v.vol = .73;   // vol .73 = normal level, 1 = about +4 dB, 0 = silent                 // tmix: how much of the texture is mixed in
+  v.texHome = { x: TEX_HOME[i][0], y: TEX_HOME[i][1] }; v.tex = { ...v.texHome };
+  v.styHome = { x: STY_HOME[i][0], y: STY_HOME[i][1] }; v.sty = { ...v.styHome };
+  if (!v.active) park(v);
+});
+let panel = "sound";                                     // keys 1–5 (or the tabs) pick sound, texture, style, harmony, rhythm
+const PANELS = ["sound", "texture", "style", "harmony", "rhythm"];
+
+const Q = v => v === KEY ? KEY : panel === "sound" ? v : panel === "texture" ? v.tex : panel === "rhythm" ? v.rhy : v.sty;   // the position being edited on the current panel
+// style: x = groove, loose → locked · y = material, organic → industrial
+// internal corner weights (never shown): a = loose+organic · o = locked+organic · i = loose+industrial · t = locked+industrial; acid grows in the far t corner
+function styleW(v) {
+  const x = clamp(v.sty.x), y = clamp(v.sty.y);   // called with v.h (heard values) for sound
+  return { a: (1 - x) * (1 - y), o: x * (1 - y), i: (1 - x) * y, t: x * y,   // corner weights
+           org: 1 - y, mech: y,                                                // material
+           c: clamp((x * y - .45) / .55) };                                    // acid: grows into the top-right corner
+}
+// groove feel: loose = humanised timing, swing, softer varied accents, longer tails · locked = on the grid, hard accents, short gates
+function feelT(v, t, i) {
+  const loose = 1 - clamp(v.h.sty.x);
+  let dt = (Math.random() - .5) * loose * .026;            // up to ±13 ms of human drift
+  if (i % 2 === 1) dt += loose * STEP * .24;               // swing the off-16ths
+  return Math.max(t + dt, ctx.currentTime + .005);
+}
+function feelVel(v, vel, i) {
+  const lock = clamp(v.h.sty.x), grid = i % 4 === 0 ? 1.1 : i % 2 === 0 ? .85 : .6;
+  return vel * lerp(.7 + Math.random() * .4, grid, lock);
+}
+/* ---------- RHYTHM (panel 5) ----------
+   No genres: each sound can be given a rhythmic character, and styles emerge from the mix.
+   x = syncopation (on the beat → off the beat) · y = grouping (even → odd) ·
+   push/pull = mutation (frozen → evolving) · twist = interlock (independent → listening to the others).
+   Density still comes from the sound panel. Parked in the gutter = free patterns, as before. */
+const GROUPINGS = [
+  { g: [4, 4, 4, 4], name: "4 + 4 + 4 + 4", mood: "even · square" },
+  { g: [3, 3, 2, 3, 3, 2], name: "3 + 3 + 2 · 3 + 3 + 2", mood: "skipping" },
+  { g: [3, 3, 3, 3, 4], name: "3 + 3 + 3 + 3 + 4", mood: "rolling" },
+  { g: [5, 3, 5, 3], name: "5 + 3 + 5 + 3", mood: "odd · lopsided" },
+];
+const RHY_ORDER = ["kick", "sub", "ticks", "bells", "pad"];   // who listens to whom: later parts make room for earlier ones
+const MUT_HOME = .2, LOCK_HOME = .3;
+VOICES.forEach((v, i) => {
+  v.rhyHome = { x: -.2, y: .12 + i * .19 }; v.rhy = { ...v.rhyHome };
+  v.mut = MUT_HOME; v.lock = LOCK_HOME;
+  v.jit = Array.from({ length: 16 }, () => Math.random());   // fixed tie-breakers: this sound's own fingerprint
+  v.pat = new Array(16).fill(0); v.score = new Array(16).fill(0);
+  v.cur = new Array(16).fill(0); v.prev = new Array(16).fill(0);   // what it actually played, this bar and the last
+});
+const shaped = v => inField(v.rhy.x, v.rhy.y);                  // where it is placed (the target)
+const rhyOn = v => Math.random() < v.h.rin;                     // what plays: crossfades step by step between free and shaped
+const groupingOf = (v, heard = true) => GROUPINGS[Math.min(3, Math.floor(clamp((heard ? v.h.rhy : v.rhy).y) * 4))];
+function groupStarts(G) { const s = []; let a = 0; for (const n of G.g) { s.push(a); a += n; } return s; }
+function rhythmWeights(v) {                               // how much each of the 16 steps suits this position
+  const sy = clamp(v.h.rhy.x), starts = groupStarts(groupingOf(v)), G = groupingOf(v).g;
+  const on = new Array(16).fill(0), off = new Array(16).fill(0);
+  for (let j = 0; j < 16; j++) { on[j] = j % 2 === 0 ? .18 : .08; off[j] = j % 2 === 1 ? .2 : .1; }
+  starts.forEach((s0, gi) => {
+    const mid = s0 + Math.floor(G[gi] / 2);
+    on[s0] = s0 === 0 ? 1.2 : 1; on[mid] = Math.max(on[mid], .45);
+    off[s0] = .04; off[mid] = 1; off[(s0 + 15) % 16] = Math.max(off[(s0 + 15) % 16], .8); off[(s0 + 1) % 16] = Math.max(off[(s0 + 1) % 16], .5);
+  });
+  // each step crosses over at its own point, so notes move one by one instead of all at once
+  return on.map((a, j) => lerp(a, off[j], clamp((sy - .5) * 1.6 + .5 + (v.jit[j] - .5) * .4)));
+}
+function densityOf(v) {                                    // hits per bar, from the sound panel's x (same ranges as the free patterns)
+  const x = clamp(v.h.x);
+  return { kick: x < .12 ? 1 : Math.round(1 + (x - .12) / .88 * 6), ticks: Math.round(1 + x * 12), sub: Math.round(2 + clamp((x - .4) / .6) * 7),
+           pad: Math.round(2 + x * 6), bells: Math.round(1 + x * 9) }[v.id];
+}
+function buildPatterns(newBar) {
+  const taken = new Array(16).fill(0);
+  for (const id of RHY_ORDER) {
+    const v = V[id];
+    if (newBar && v.h.rin > .5 && Math.random() < v.h.mut) {   // mutation: re-roll a few of its tie-breakers
+      for (let n = Math.ceil(v.h.mut * 4); n > 0; n--) v.jit[Math.floor(Math.random() * 16)] = Math.random();
+    }
+    if (v.h.rin > .001) {
+      const w = rhythmWeights(v), k = densityOf(v);
+      v.score = w.map((a, j) => a * (1 - v.h.lock * .9 * Math.min(1, taken[j])) + v.jit[j] * (.12 + v.h.mut * .5));
+      const order = [...v.score.keys()].sort((a, b) => v.score[b] - v.score[a]), top = Math.max(...w);
+      const want = new Array(16).fill(0); for (const j of order.slice(0, k)) want[j] = .55 + .45 * w[j] / top;
+      morphPattern(v.pat, want, v.pat.some(a => a) ? 2 : 16);
+    }
+    if (audible(v, ctx ? ctx.currentTime : 0)) {            // what later parts listen to
+      const src = v.h.rin > .5 ? v.pat : v.prev;
+      for (let j = 0; j < 16; j++) if (src[j]) taken[j] += id === "pad" ? .5 : 1;
+    }
+  }
+}
+// patterns travel toward where you put them: at most a couple of notes move, appear or disappear per bar
+function morphPattern(pat, want, moves) {
+  const adds = [], dels = [];
+  for (let j = 0; j < 16; j++) { if (want[j] && pat[j]) pat[j] = want[j]; else if (want[j]) adds.push(j); else if (pat[j]) dels.push(j); }
+  while (moves-- > 0 && (adds.length || dels.length)) {
+    if (adds.length && dels.length) {                    // move the closest pair: a note slides to its new step
+      let best = null;
+      for (const a of adds) for (const d of dels) { const dd = Math.min(Math.abs(a - d), 16 - Math.abs(a - d)); if (!best || dd < best[2]) best = [a, d, dd]; }
+      pat[best[0]] = want[best[0]]; pat[best[1]] = 0; adds.splice(adds.indexOf(best[0]), 1); dels.splice(dels.indexOf(best[1]), 1);
+    } else if (adds.length) { const a = adds.shift(); pat[a] = want[a]; }
+    else { pat[dels.shift()] = 0; }
+  }
+}
+// a shaped part plays its pattern; loose style drops a few notes and adds ghost notes where the pattern leans
+function rhyHit(v, i) {
+  const loose = 1 - clamp(v.h.sty.x), w = v.pat[i];
+  if (w > 0) return Math.random() < 1 - loose * .3 ? w : 0;
+  if (loose > .3 && Math.random() < loose * .1 * v.score[i]) return .35;
+  return 0;
+}
+let curI = 0;
+const mark = v => { v.cur[curI] = 1; };
+
+/* ---------- TRANSITIONS ----------
+   Nothing jumps. Every panel edits a target (what you see); the sound follows a gliding copy (v.h, what you hear).
+   Time constants in seconds (about 3× this to fully arrive). Tempo glides too; key and chord changes land on the
+   next bar and crossfade; sounds fade in and out. */
+const GLIDE = { x: 1, y: 1, z: .9, echo: .9, tmix: 1, vol: .8, mut: 1.2, lock: 1.5, sty: 1.5, tex: 1, rhy: 2, rin: 1.6, bpm: 1.5 };
+const FLAT = ["x", "y", "z", "echo", "tmix", "vol", "mut", "lock"], PAIRS = ["sty", "tex", "rhy"];
+VOICES.forEach(v => {
+  v.h = { rin: 0 }; for (const f of FLAT) v.h[f] = v[f]; for (const f of PAIRS) v.h[f] = { ...v[f] };
+});
+let bpmH = 116, lastGlide = 0;
+function glide(now) {                                    // called by the scheduler (keeps running in background tabs)
+  const dt = lastGlide ? Math.min(.25, now - lastGlide) : 0; lastGlide = now;
+  if (!dt) return;
+  const k = f => 1 - Math.exp(-dt / GLIDE[f]);
+  for (const v of VOICES) {
+    const h = v.h; let moved = 0;
+    const silent = !audible(v, now), leaving = !v.active && v !== grabbed;
+    if (silent) { h.x = v.x; h.y = v.y; }                // silent: nothing to glide, it fades in where you put it
+    for (const f of FLAT) { if (leaving && (f === "x" || f === "y")) continue;   // fading out: it stays as it was
+      const d = v[f] - h[f]; h[f] += d * k(f); moved = Math.max(moved, Math.abs(d)); }
+    for (const f of PAIRS) for (const c of ["x", "y"]) { const d = v[f][c] - h[f][c]; h[f][c] += d * k(f); moved = Math.max(moved, Math.abs(d)); }
+    h.rin += ((shaped(v) ? 1 : 0) - h.rin) * k("rin");
+    if (moved > .002 || v.wasMoving) { applyFx(v, now); applyTex(v, now); applyStyle(v, now); applyVol(v, now); }
+    v.wasMoving = moved > .002;
+  }
+  const target = Math.round(70 + clamp(KEY.x) * 70);
+  if (Math.abs(target - bpmH) > .01) {
+    bpmH += (target - bpmH) * k("bpm"); BPM = bpmH; STEP = 60 / BPM / 4;
+    for (const v of VOICES) v.delay.delayTime.setTargetAtTime(STEP * 3, now, .3);
+  }
+}
+const mixS = (w, a, o, i, t) => w.a * a + w.o * o + w.i * i + w.t * t;   // blend a value across the four corners
+const grainOf = v => clamp((v.h.tex.x - .25) / .75), dustOf = v => clamp((v.h.tex.y - .25) / .75);   // bottom-left quarter = clean
+
+/* =====================================================================
+   AUDIO
+   ===================================================================== */
+let ctx, bus, duck, revIn, mfilt, analyser, noiseBuf, sub, pad;
+let harmony = 0, bar = 0, step = 0, nextTime = 0, timer = null;
+const barStarts = [];                                  // audio times of recent downbeats (for the step light on the rhythm panel)
+const vis = [];                                        // visual events, released on audio time
+
+function impulse(sec, decay) {
+  const len = Math.floor(ctx.sampleRate * sec), b = ctx.createBuffer(2, len, ctx.sampleRate);
+  for (let c = 0; c < 2; c++) { const d = b.getChannelData(c); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, decay); }
+  return b;
+}
+function gainNode(v = 1) { const g = ctx.createGain(); g.gain.value = v; return g; }
+function filt(type, f, q = .7) { const b = ctx.createBiquadFilter(); b.type = type; b.frequency.value = f; b.Q.value = q; return b; }
+function osc(type, f) { const o = ctx.createOscillator(); o.type = type; o.frequency.value = f; return o; }
+function env(t, peak, a, d) {                          // attack/decay envelope gain
+  const g = ctx.createGain(); g.gain.setValueAtTime(0, t);
+  g.gain.linearRampToValueAtTime(peak, t + a); g.gain.exponentialRampToValueAtTime(0.0001, t + a + d); return g;
+}
+function noiseBurst(t, dur) { const s = ctx.createBufferSource(); s.buffer = noiseBuf; s.start(t, Math.random() * 1.5); s.stop(t + dur + .02); return s; }
+function pan(p) { const s = ctx.createStereoPanner(); s.pan.value = p; return s; }
+function emit(v, t, amt = 1) { vis.push({ v, t, amt }); }
+
+const DRIVE_CURVE = (() => {
+  const n = 4096, c = new Float32Array(n);
+  for (let i = 0; i < n; i++) { const x = i / (n - 1) * 2 - 1; c[i] = Math.tanh(x * 1.2) / Math.tanh(1.2); }
+  return c;
+})();
+const STYLE_DRIVE = { kick: [1, 1.3, 6, 2.6], ticks: [1, 1.2, 4, 1.4], sub: [1, 1.4, 7, 1.8], pad: [1, 1.1, 4.5, 1.3], bells: [1, 1.1, 4.5, 1.2] };
+function applyStyle(v, now) {
+  const w = styleW(v.h), d = mixS(w, ...STYLE_DRIVE[v.id]) + w.c * 1.2, bright = v.id === "ticks" || v.id === "bells";
+  v.sDrive.gain.setTargetAtTime(d, now, .05);
+  v.sMake.gain.setTargetAtTime(1 / Math.pow(d, .55), now, .05);
+  v.sLP.frequency.setTargetAtTime(mixS(w, bright ? 8000 : 13000, bright ? 11000 : 16000, 7000, 18000), now, .05);
+}
+const CRUSH = (() => {                                  // ~4-bit staircase with a little drive
+  const n = 4096, c = new Float32Array(n);
+  for (let i = 0; i < n; i++) { const x = i / (n - 1) * 2 - 1; c[i] = Math.round(Math.tanh(x * 1.6) * 7) / 7; }
+  return c;
+})();
+function initAudio() {
+  ctx = new (window.AudioContext || window.webkitAudioContext)();
+  const comp = ctx.createDynamicsCompressor();
+  comp.threshold.value = -18; comp.ratio.value = 3; comp.attack.value = .01; comp.release.value = .25; comp.knee.value = 10;
+  const limit = ctx.createDynamicsCompressor();
+  limit.threshold.value = -3; limit.ratio.value = 20; limit.attack.value = .002; limit.release.value = .1;
+  analyser = ctx.createAnalyser(); analyser.fftSize = 1024;
+  bus = gainNode(.8); mfilt = filt("lowpass", 20000, .9); bus.connect(mfilt); mfilt.connect(comp); comp.connect(limit); limit.connect(analyser); analyser.connect(ctx.destination);
+  duck = gainNode(1); duck.connect(bus);               // sub + pad breathe with the kick
+
+  const rev = ctx.createConvolver(); rev.buffer = impulse(5.5, 2.6);
+  revIn = gainNode(1); const revOut = gainNode(.55); revIn.connect(rev); rev.connect(revOut); revOut.connect(bus);
+
+  noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 3, ctx.sampleRate);
+  const nd = noiseBuf.getChannelData(0); for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
+
+  for (const v of VOICES) {
+    v.out = gainNode(0);                                 // on/off fade (see fade())
+    // texture: grain chops the sound into fragments, dust crushes it lo-fi and adds crackle
+    v.chop = gainNode(1); v.post = gainNode(1); v.clean = gainNode(1); v.crushG = gainNode(0);
+    const crush = ctx.createWaveShaper(); crush.curve = CRUSH; const clp = filt("lowpass", 4200);
+    // style: drive into saturation, then a tone filter, before the texture
+    v.sDrive = gainNode(1); const shape = ctx.createWaveShaper(); shape.curve = DRIVE_CURVE; shape.oversample = "2x";
+    v.sLP = filt("lowpass", 18000, .7); v.sMake = gainNode(1);
+    v.out.connect(v.sDrive); v.sDrive.connect(shape); shape.connect(v.sLP); v.sLP.connect(v.sMake);
+    v.sMake.connect(v.chop); v.chop.connect(v.clean); v.clean.connect(v.post);
+    v.chop.connect(crush); crush.connect(clp); clp.connect(v.crushG); v.crushG.connect(v.post);
+    v.dry = gainNode(1); v.rev = gainNode(0);
+    v.post.connect(v.dry); v.dry.connect(v.id === "sub" || v.id === "pad" ? duck : bus);
+    v.post.connect(v.rev); v.rev.connect(revIn);
+    // each voice has its own echo line, so twisting one sound's trails leaves the others alone
+    v.dSend = gainNode(0); v.delay = ctx.createDelay(3); v.delay.delayTime.value = STEP * 3;
+    v.fb = gainNode(0); const dlp = filt("lowpass", 3000), dhp = filt("highpass", 250), dOut = gainNode(.7);
+    v.post.connect(v.dSend); v.dSend.connect(v.delay); v.delay.connect(dlp); dlp.connect(dhp); dhp.connect(v.fb); v.fb.connect(v.delay);
+    dhp.connect(dOut); dOut.connect(bus); const dRev = gainNode(.35); dhp.connect(dRev); dRev.connect(revIn);
+    applyFx(v, ctx.currentTime); applyTex(v, ctx.currentTime); applyStyle(v, ctx.currentTime);
+  }
+  sub = makeSub(); pad = makePad();
+}
+
+// depth z: 0 = close and dry, 1 = far and washed out · echo: 0 = none, 1 = long trails
+function applyFx(v, now) {
+  v.dry.gain.setTargetAtTime(1 - v.h.z * .55, now, .08);
+  v.rev.gain.setTargetAtTime(.03 + v.h.z * .85, now, .08);
+  v.dSend.gain.setTargetAtTime(v.h.echo < .02 ? 0 : .2 + v.h.echo * .45, now, .08);
+  v.fb.gain.setTargetAtTime(.08 + v.h.echo * .74, now, .08);
+}
+function applyTex(v, now) {
+  const d = dustOf(v) * v.h.tmix;
+  v.clean.gain.setTargetAtTime(1 - d * .7, now, .05);
+  v.crushG.gain.setTargetAtTime(d * .85, now, .05);
+}
+// per 16th step: grain gates the sound in 32nds/64ths, dust sprinkles crackle that rides through the voice
+function textureStep(t) {
+  for (const v of VOICES) {
+    if (!audible(v, ctx.currentTime)) continue;
+    const g = grainOf(v), d = dustOf(v) * v.h.tmix;
+    if (g > 0 && v.h.tmix > .02) {
+      const n = g < .5 ? 2 : 4, len = STEP / n, depth = Math.min(1, .35 + g * .8) * v.h.tmix;
+      for (let k = 0; k < n; k++) v.chop.gain.setTargetAtTime(Math.random() < .15 + g * .6 ? 1 - depth : 1, t + k * len, .003);
+    } else v.chop.gain.setTargetAtTime(1, t, .01);
+    if (d > 0) {
+      const n = Math.floor(d * d * 3 + Math.random() * d * 2.2);
+      for (let k = 0; k < n; k++) {
+        const tt = t + Math.random() * STEP, dur = .001 + Math.random() * .004;
+        const s = noiseBurst(tt, dur), f = filt("bandpass", 1200 + Math.random() * 5000, 1.5), e = env(tt, (.06 + Math.random() * .3) * d, .0005, dur);
+        s.connect(f); f.connect(e); e.connect(v.out);
+      }
+    }
+  }
+}
+let masterF = 1;                                        // 0 = muffled, 1 = wide open
+function applyMaster(now) { mfilt.frequency.setTargetAtTime(180 * Math.pow(2, masterF * 6.8), now, .5); }
+
+const volF = v => 1.6 * Math.pow(v.h.vol, 1.5);           // volume control → gain (≈1 at the default)
+// Sounds entering the field fade in; sounds leaving it fade out (and keep playing their pattern while they do).
+const FADE_IN = 3, FADE_OUT = 4;                          // seconds
+function fade(v, on) {
+  const g = v.out.gain, now = ctx.currentTime, start = now + .01;
+  if (g.cancelAndHoldAtTime) g.cancelAndHoldAtTime(now); else g.cancelScheduledValues(now);
+  const from = g.value, to = on ? v.level * volF(v) : 0, dur = on ? FADE_IN : FADE_OUT;
+  const curve = new Float32Array(64);                     // eased curves sound even to the ear
+  for (let k = 0; k < 64; k++) { const x = k / 63; curve[k] = on ? from + (to - from) * x * x : to + (from - to) * (1 - x) * (1 - x); }
+  try { g.setValueCurveAtTime(curve, start, dur); }
+  catch { g.cancelScheduledValues(now); g.setValueAtTime(from, now); g.setTargetAtTime(to, start, dur / 4); }   // older browsers
+  v.fadeEnd = start + dur;
+  v.fadeOutEnd = on ? 0 : start + dur;
+}
+function setActive(v, on) {
+  const was = v.active;
+  if (on && !was && ctx && !audible(v, ctx.currentTime)) { v.h.x = v.x; v.h.y = v.y; }   // from silence: it fades in where it is
+  v.active = on;
+  if (!ctx || (was === on && ctx.currentTime > (v.fadeEnd || 0))) return;   // already there and settled: nothing to do
+  fade(v, on);
+}
+const audible = (v, t) => v.active || v === grabbed || t < (v.fadeOutEnd || 0);
+function applyVol(v, now) { if (v.active && now > (v.fadeEnd || 0)) v.out.gain.setTargetAtTime(v.level * volF(v), now, .05); }
+
+/* ---------- Kick · x: density, from one hit every two bars to 7 per bar · y: pitch + click ---------- */
+function kickHit(t, vel) {
+  const v = V.kick, w = styleW(v.h);
+  const end = (36 + v.h.y * 42) * (1 + (Math.random() - .5) * .04 * w.org);      // organic: the tuning breathes a little
+  const ratio = mixS(w, 2.4, 2.8, 4.4, 4.2), drop = (.05 + (1 - v.h.y) * .04) * mixS(w, 1.5, 1.1, 1, .7);
+  const dec = (.75 - v.h.y * .45) * mixS(w, 1.4, .8, 1.05, .6);
+  const o = osc("sine", end * ratio);
+  o.frequency.setValueAtTime(end * ratio, t); o.frequency.exponentialRampToValueAtTime(end, t + drop);
+  const g = env(t, vel, w.org > .5 ? .004 : .002, dec);
+  o.connect(g); g.connect(v.out); o.start(t); o.stop(t + dec + .3);
+  if (w.org > .05) {                                    // organic: a skin, a soft low thud
+    const n = noiseBurst(t, .15), f = filt("bandpass", 90 + v.h.y * 160, 1.2), sg = env(t, vel * w.org * .9, .003, .09 + w.a * .08);
+    n.connect(f); f.connect(sg); sg.connect(v.out);
+  }
+  const click = v.h.y * .35 * w.mech * mixS(w, .4, .6, 1, 1.6);
+  if (click > .03) {                                    // mechanical: a click, sharper for techno
+    const n = noiseBurst(t, .01), f = filt("bandpass", 2000 + v.h.y * 5000, .8), cg = env(t, vel * click, .001, .008);
+    n.connect(f); f.connect(cg); cg.connect(v.out);
+  }
+  if (w.i > .05) {                                      // industrial: noisy, metallic body
+    const n = noiseBurst(t, .3), f = filt("bandpass", 900 + v.h.y * 1500, 1.5), ng = env(t, vel * w.i * .6, .001, .22);
+    n.connect(f); f.connect(ng); ng.connect(v.out);
+    const c = osc("sine", 160 + v.h.y * 200), m = osc("square", 237), mi = gainNode(380), cg = env(t, vel * w.i * .35, .001, .25);
+    m.connect(mi); mi.connect(c.frequency); c.connect(cg); cg.connect(v.out);
+    c.start(t); m.start(t); c.stop(t + .4); m.stop(t + .4);
+  }
+  if (v.active) { duck.gain.setValueAtTime(.62, t); duck.gain.setTargetAtTime(1, t + .02, .12); }
+  mark(v); emit(v, t, vel);
+}
+
+/* ---------- Ticks · organic: wood + shaker · mechanical: hats, 808 metal (acid), clangs (industrial) ---------- */
+const HAT808 = [205.3, 304.4, 369.6, 522.7, 540, 800];
+function tickHit(t, vel) {
+  const v = V.ticks, w = styleW(v.h), p = pan((Math.random() - .5) * .9);
+  p.connect(v.out);
+  if (w.org > .04) {
+    const woodF = (700 + v.h.y * 1900) * (.96 + Math.random() * .08), lowTone = 1 - v.h.y * .5;
+    const n = noiseBurst(t, .05), bp = filt("bandpass", woodF, 18), g = env(t, vel * w.org * 2.4 * lowTone, .001, .05 + w.a * .04);
+    n.connect(bp); bp.connect(g); g.connect(p);
+    const ping = osc("sine", woodF), pg = env(t, vel * w.org * .35 * lowTone, .001, .03);
+    ping.connect(pg); pg.connect(p); ping.start(t); ping.stop(t + .08);
+    if (v.h.y > .3) {                                     // a shaker grows in as the tone goes up
+      const sh = noiseBurst(t, .09), sf = filt("bandpass", 6000 + v.h.y * 3000, 1), sg = env(t, vel * w.org * v.h.y * .45, .006 + w.a * .01, .04);
+      sh.connect(sf); sf.connect(sg); sg.connect(p);
+    }
+  }
+  const crisp = w.t * (1 - w.c) + w.i * .2;
+  if (crisp > .04) {                                    // techno: crisp closed hat
+    const n = noiseBurst(t, .06), f = filt("highpass", 6500 + v.h.y * 3500), g = env(t, vel * crisp * .75, .001, .02 + v.h.y * .025);
+    n.connect(f); f.connect(g); g.connect(p);
+  }
+  if (w.c > .04) {                                      // acid: 808-style metal
+    const bp = filt("bandpass", 8500 + v.h.y * 2500, .9), hp = filt("highpass", 6500), g = env(t, vel * w.c * .5, .001, .035 + v.h.y * .03), mg = gainNode(.16);
+    for (const f of HAT808) { const o = osc("square", f * (1 + v.h.y * .4)); o.connect(mg); o.start(t); o.stop(t + .12); }
+    mg.connect(bp); bp.connect(hp); hp.connect(g); g.connect(p);
+  }
+  if (w.i > .04) {                                      // industrial: clangs
+    const cf = (900 + v.h.y * 1800) * (.9 + Math.random() * .2);
+    const c = osc("sine", cf), m = osc("sine", cf * 1.414), mi = gainNode(cf * 5), g = env(t, vel * w.i * .4, .001, .09);
+    m.connect(mi); mi.connect(c.frequency); c.connect(g); g.connect(p); c.start(t); m.start(t); c.stop(t + .15); m.stop(t + .15);
+    const n = noiseBurst(t, .05), f = filt("bandpass", 2500, 2), ng = env(t, vel * w.i * .3, .001, .03);
+    n.connect(f); f.connect(ng); ng.connect(p);
+  }
+  mark(v); emit(v, t, vel);
+}
+
+/* ---------- Sub · organic: round, drifting, breathy, plucked when locked · mechanical: saw/square, acid line ---------- */
+function makeSub() {
+  const v = V.sub, s = osc("sine", mtof(38)), tri = osc("triangle", mtof(38)), w = osc("sawtooth", mtof(38)), q = osc("square", mtof(38));
+  const sg = gainNode(1), tg = gainNode(0), wg = gainNode(0), qg = gainNode(0), lp = filt("lowpass", 120, 1.2), amp = gainNode(0);
+  s.connect(sg); sg.connect(amp); tri.connect(tg); tg.connect(amp);
+  w.connect(wg); q.connect(qg); wg.connect(lp); qg.connect(lp); lp.connect(amp); amp.connect(v.out);
+  const drift = osc("sine", .23), driftAmt = gainNode(0); drift.connect(driftAmt); driftAmt.connect(s.detune); driftAmt.connect(tri.detune);
+  const br = ctx.createBufferSource(); br.buffer = noiseBuf; br.loop = true;      // breath under the note
+  const brf = filt("lowpass", 320, .7), brg = gainNode(0); br.connect(brf); brf.connect(brg); brg.connect(amp);
+  for (const o of [s, tri, w, q, drift, br]) o.start();
+  let base = 120, rootNote = 38;
+  const ACID_LINE = [0, 0, 7, 0, 2, 0, 9, 7, 0, 10, 0, 7, 3, 0, 7, 4];   // scale degrees, 303-style sequence
+  const setPitch = (n, t, glide) => { for (const o of [s, tri, w, q]) { if (glide) o.frequency.setTargetAtTime(mtof(n), t, glide); else o.frequency.setValueAtTime(mtof(n), t); } };
+  return {
+    tune(t, note) { rootNote = note; setPitch(note, t, .25); },
+    tone(now) {
+      const st = styleW(v.h);
+      base = (70 + v.h.y * v.h.y * 1600) * mixS(st, 1, 1, 2, 1.2) * (1 + st.c * .4);
+      sg.gain.setTargetAtTime((st.org * .7 + st.mech * .65) * (1 - st.c * .45), now, .1);
+      tg.gain.setTargetAtTime(st.org * .3, now, .1);
+      wg.gain.setTargetAtTime(st.mech * (v.h.y * .55 + .35) + st.c * .5, now, .1);
+      qg.gain.setTargetAtTime(st.i * .45, now, .1);
+      driftAmt.gain.setTargetAtTime(st.org * 7, now, .3);
+      brg.gain.setTargetAtTime(st.org * .035 * (.5 + v.h.y), now, .2);
+      lp.Q.setTargetAtTime(1.2 + st.c * 13 + st.i * 3, now, .1);
+      lp.frequency.setTargetAtTime(base, now, .1);
+    },
+    step(t, i) {
+      const st = styleW(v.h), mode = Math.min(4, Math.floor(v.h.x * 5)), lock = clamp(v.h.sty.x);
+      const tight = mixS(st, 1, .55, 1, .6) * lerp(1.35, .75, lock);   // loose = longer tails, locked = short gates, organic+locked = plucked
+      const hit = (peak, len) => {
+        let accent = false;
+        if (st.c > .25) {                                 // acid: the sub plays a moving line with slides and accents
+          const deg = ACID_LINE[i], sc = MODES[HS.mode][1];
+          const n = rootNote + sc[deg % 7] + 12 * Math.floor(deg / 7);
+          setPitch(n, t, i % 4 === 3 || Math.random() < st.c * .25 ? .035 : 0);
+          accent = i % 4 === 0 || deg >= 7; peak *= accent ? 1.1 : .8;
+        } else setPitch(rootNote, t, .03);
+        amp.gain.setTargetAtTime(peak, t, .006 + st.org * .006); amp.gain.setTargetAtTime(0, t + len * tight, .05);
+        if (st.c > .05) { lp.frequency.setValueAtTime(base * (1 + st.c * 9 * (accent ? 1.5 : 1)), t); lp.frequency.setTargetAtTime(base, t + .003, .06 + (1 - st.c) * .05); }
+        mark(v); emit(v, t, peak);
+      };
+      if (rhyOn(v)) {                                   // rhythm panel: its own pattern, always pulsing
+        const k = densityOf(v), r = rhyHit(v, i);
+        if (r) hit(.45 + .4 * r, STEP * clamp(16 / k * .7, .6, 3));
+        return;
+      }
+      if (mode <= 1 && i === 0) setPitch(rootNote, t, .05);
+      if (mode === 0) { if (i === 0) { amp.gain.setTargetAtTime(.75, t, .5); emit(v, t, .4); } }
+      else if (mode === 1) { if (i === 0) { amp.gain.setTargetAtTime(.8, t, .25); amp.gain.setTargetAtTime(.15, t + STEP * 10, .4); emit(v, t, .7); } }
+      else {                                            // pulses: 2–9 hits per bar, falling between the kicks
+        const k = Math.round(2 + (v.h.x - .4) / .6 * 7);
+        if (pulseHit(v, k, i, 2)) hit(i % 4 === 2 ? .85 : .6, STEP * clamp(16 / k * .7, .6, 3));
+      }
+    }
+  };
+}
+
+/* ---------- Pad · organic: tape pad (soft waves, wow, breath) · mechanical: saw stack, acid squares, industrial grit ---------- */
+function makePad() {
+  const v = V.pad, lp = filt("lowpass", 800, .9), lfo = osc("sine", .05), lfoAmt = gainNode(300);
+  lfo.connect(lfoAmt); lfoAmt.connect(lp.frequency); lfo.start();
+  const gate = gainNode(1); lp.connect(gate); gate.connect(v.out);   // closes between stabs when the pad has a rhythm
+  const wow = osc("sine", .45), wowAmt = gainNode(0); wow.connect(wowAmt); wow.start();      // tape wow
+  const mkNoise = (f, q) => { const n = ctx.createBufferSource(); n.buffer = noiseBuf; n.loop = true; const b = filt("bandpass", f, q), g = gainNode(0); n.connect(b); b.connect(g); g.connect(lp); n.start(); return g; };
+  const ng = mkNoise(700, 1), bg = mkNoise(1500, .6);   // industrial grit · organic breath
+  let voices = [], gated = false;
+  return {
+    tone(now) {
+      const st = styleW(v.h);
+      lp.frequency.setTargetAtTime((260 + v.h.y * v.h.y * 4200) * mixS(st, 1, .8, 1.3, .6) * (1 + st.c * .3), now, .3);
+      lp.Q.setTargetAtTime(.9 + st.c * 8 + st.i * 2 + st.t, now, .3);
+      lfo.frequency.setTargetAtTime((.02 + v.h.x * .45) * (1 + st.c * 2.5), now, .5);
+      lfoAmt.gain.setTargetAtTime((150 + v.h.y * 1100) * (1 + st.c * 1.5) * mixS(st, 1, .8, 1, .6), now, .3);
+      ng.gain.setTargetAtTime(st.i * .05, now, .3); bg.gain.setTargetAtTime(st.org * .02, now, .3);
+      wowAmt.gain.setTargetAtTime(st.org * 9, now, .4);
+      const spread = 1 + st.i * 6;
+      for (const g of voices) {
+        g._mechOscs.forEach(o => o.detune.setTargetAtTime(o._c * spread, now, .3));
+        g._mech.gain.setTargetAtTime(st.mech, now, .4); g._org.gain.setTargetAtTime(st.org * 1.1, now, .4);
+        g._sq.gain.setTargetAtTime(st.c * .8, now, .3);
+      }
+    },
+    step(t, i) {
+      const rin = v.h.rin;
+      if (rin < .01) { if (gated) { gate.gain.setTargetAtTime(1, t, .2); gated = false; } return; }
+      const floor = lerp(1, .14, rin), len = clamp(16 / densityOf(v) * .45, .7, 4) * STEP, r = rhyHit(v, i);
+      if (i % 4 === 0 || !gated) { gate.gain.setTargetAtTime(floor, t, .05); gated = true; }
+      if (r) { gate.gain.setTargetAtTime(r, t, .004); gate.gain.setTargetAtTime(floor, t + len, .03); if (audible(v, t)) { mark(v); emit(v, t, .5); } }
+    },
+    chord(t, notes) {
+      for (const g of voices) { g.gain.cancelScheduledValues(t); g.gain.setTargetAtTime(0, t, 1.6); }
+      const old = voices; setTimeout(() => old.forEach(g => g._all.forEach(o => { try { o.stop(); } catch {} })), (t - ctx.currentTime + 9) * 1000);
+      const up = v.h.y > .68 ? 12 : 0, st = styleW(v.h);
+      voices = notes.map(n => {
+        const g = gainNode(0); g.gain.setTargetAtTime(.05, t, 1.4); g.connect(lp);
+        g._mech = gainNode(st.mech); g._org = gainNode(st.org * 1.1); g._sq = gainNode(st.c * .8);
+        for (const b of [g._mech, g._org, g._sq]) b.connect(g);
+        const mk = (type, cents, dest) => { const o = osc(type, mtof(n + up)); o._c = cents; o.detune.value = cents; wowAmt.connect(o.detune); o.connect(dest); o.start(t); return o; };
+        g._mechOscs = [mk("sawtooth", -7, g._mech), mk("triangle", 6, g._mech), mk("sawtooth", 3, g._mech)];
+        g._all = [...g._mechOscs, mk("triangle", -3, g._org), mk("sine", 4, g._org), mk("square", -4, g._sq)];
+        return g;
+      });
+      emit(v, t, 1);
+    }
+  };
+}
+
+/* ---------- Bells · organic: kalimba / marimba · mechanical: FM glass and stabs, clangs (industrial), resonant plucks (acid) ---------- */
+let bellIdx = 14;
+let bellMotif = Array.from({ length: 16 }, () => 0);
+(function makeMotif() { let o = 0; bellMotif = bellMotif.map(() => (o = clamp(o + [-2, -1, 1, 2, 0][Math.floor(Math.random() * 5)], -5, 5))); })();
+function mutateMotif() { const k = Math.floor(Math.random() * 16); bellMotif[k] = clamp(bellMotif[k] + (Math.random() < .5 ? -1 : 1), -5, 5); }
+function bellHit(t, motifStep) {
+  const v = V.bells;
+  const center = Math.floor(lerp(4, BELL_NOTES.length - 6, v.h.y));
+  if (motifStep !== undefined) bellIdx = clamp(center + bellMotif[motifStep], 0, BELL_NOTES.length - 1);   // locked: the motif
+  else {                                                // loose: a random walk around the register
+    bellIdx = clamp(bellIdx + [-2, -1, -1, 1, 1, 2, 0][Math.floor(Math.random() * 7)], 0, BELL_NOTES.length - 1);
+    if (Math.abs(bellIdx - center) > 5) bellIdx += Math.sign(center - bellIdx) * 2;
+  }
+  const f = mtof(BELL_NOTES[bellIdx]), w = styleW(v.h), p = pan((Math.random() - .5) * 1.2);
+  p.connect(v.out);
+  if (w.org > .05) {                                    // a fundamental, a bright partial that dies fast, a little knock
+    const dec = (w.a * (1.6 + Math.random()) + w.o * .45) / w.org * (1.1 - v.h.y * .3);
+    const f1 = osc("sine", f), g1 = env(t, .3 * w.org, .002, dec);
+    const f2 = osc("sine", f * (v.h.y > .5 ? 5.4 : 4)), g2 = env(t, .12 * w.org, .001, dec * .15);
+    f1.connect(g1); g1.connect(p); f2.connect(g2); g2.connect(p);
+    f1.start(t); f2.start(t); f1.stop(t + dec + .1); f2.stop(t + dec * .2 + .1);
+    const n = noiseBurst(t, .012), b = filt("bandpass", f * 2, 3), ng = env(t, .08 * w.org, .001, .006);
+    n.connect(b); b.connect(ng); ng.connect(p);
+  }
+  const mech = w.mech * (1 - w.c * .6);
+  if (mech > .05) {
+    const clang = w.i > w.t;
+    const dec = (1.2 + (1 - v.h.y) * .2 + Math.random() * 1.6) * (w.i * .55 + w.t * .3) / w.mech;
+    const car = osc("sine", f), mod = osc("sine", f * (clang ? 1.414 : v.h.y > .5 ? 3.5 : 2.01));
+    const idx = gainNode(0); idx.gain.setValueAtTime(f * (.8 + v.h.y * 5) * (w.i * 2.6 + w.t * .5) / w.mech, t);
+    idx.gain.exponentialRampToValueAtTime(f * .05, t + dec * .5);
+    mod.connect(idx); idx.connect(car.frequency);
+    const g = env(t, .32 * mech, .003, dec);
+    car.connect(g); g.connect(p);
+    car.start(t); mod.start(t); car.stop(t + dec + .1); mod.stop(t + dec + .1);
+  }
+  if (w.c > .05) {                                      // acid: resonant square pluck
+    const o = osc("square", f / 2), lp = filt("lowpass", f * 8, 11), g = env(t, .22 * w.c, .002, .35);
+    lp.frequency.setValueAtTime(f * 10, t); lp.frequency.exponentialRampToValueAtTime(f * 1.2, t + .18);
+    o.connect(lp); lp.connect(g); g.connect(p); o.start(t); o.stop(t + .45);
+  }
+  mark(v); emit(v, t, .9);
+}
+
+/* ---------- clock ---------- */
+function euclid(k, n, i) { return ((i * k) % n) < k; }
+// PATTERN LOGIC, decided by the style panel's groove axis (density always comes from the sound panel's X):
+//   locked → Euclidean: k hits spread as evenly as possible over 16 steps, the same every bar (hypnotic, structured)
+//   loose  → chance: each step rolls dice, weighted by where it falls in the bar, so every bar is different (floating)
+//   in between, each step picks one of the two at random, in proportion
+const METRIC = {                                         // how likely each step is on the loose side
+  kick:  i => i % 4 === 0 ? 1 : i % 2 === 0 ? .35 : .12,  // on the beat
+  ticks: i => i % 4 === 2 ? 1 : i % 2 === 1 ? .6 : .3,    // offbeats
+  sub:   i => i % 4 === 2 ? 1 : i % 2 === 1 ? .5 : .15,   // between the kicks
+  bells: i => i % 2 === 0 ? 1 : .4,
+};
+const METRIC_SUM = Object.fromEntries(Object.entries(METRIC).map(([id, f]) => [id, [...Array(16).keys()].reduce((s, j) => s + f(j), 0)]));
+function pulseHit(v, k, i, rot) {
+  if (k <= 0) return false;
+  if (Math.random() < clamp(v.h.sty.x)) return euclid(k, 16, (i + 16 - rot) % 16);
+  return Math.random() < Math.min(1, k * METRIC[v.id](i) / METRIC_SUM[v.id]);
+}
+function scheduleStep(t) {
+  const i = step % 16, on = v => audible(v, t);
+  curI = i;
+  if (i === 0) { for (const v of VOICES) { [v.prev, v.cur] = [v.cur, v.prev]; v.cur.fill(0); } barStarts.push(t); if (barStarts.length > 3) barStarts.shift(); }
+  if (i === 0) buildPatterns(true);                      // patterns change on the downbeat, a step at a time
+  if (i === 0) {
+    const every = [16, 8, 4, 2][Math.min(3, Math.floor(V.pad.h.x * 4))];
+    const tg = harmonyTarget(), moved = tg.key !== HS.key || tg.mode !== HS.mode || tg.prog !== HS.prog;
+    const turn = bar % every === 0 && bar > 0;
+    if (moved) { HS = tg; buildBells(); }               // key/mode changes land on the next bar
+    if (turn) harmony++;
+    if (turn || moved) { const c = chordFor(harmony); pad.chord(t, c.chord); sub.tune(t, c.root); emit(KEY, t, 1); }
+  }
+  if (on(V.kick) && rhyOn(V.kick)) { const r = rhyHit(V.kick, i); if (r) kickHit(feelT(V.kick, t, i), feelVel(V.kick, r, i)); }
+  else if (on(V.kick)) {
+    const kx = V.kick.h.x;
+    if (kx < .12) { if (i === 0 && bar % 2 === 0) kickHit(feelT(V.kick, t, i), feelVel(V.kick, 1, i)); }   // one hit every two bars
+    else {
+      const k = Math.round(1 + (kx - .12) / .88 * 6);   // 1–7 hits per bar; 4 locked = four on the floor
+      if (i === 0 || pulseHit(V.kick, k, i, 0)) kickHit(feelT(V.kick, t, i), feelVel(V.kick, i % 4 === 0 ? 1 : .55, i));
+    }
+    const ki = styleW(V.kick.h).i;                             // industrial: mechanical, off-kilter extra hits
+    if (ki > .3 && i % 6 === 3 && Math.random() < ki * .45) kickHit(feelT(V.kick, t, i), .45);
+  }
+  if (rhyOn(V.ticks)) { const r = on(V.ticks) && rhyHit(V.ticks, i); if (r) tickHit(feelT(V.ticks, t, i), feelVel(V.ticks, .3 + .6 * r, i)); }
+  else {
+    const k = Math.round(1 + V.ticks.h.x * 12);
+    if (on(V.ticks) && pulseHit(V.ticks, k, i, 2)) tickHit(feelT(V.ticks, t, i), feelVel(V.ticks, .75, i));
+  }
+  const ti = on(V.ticks) ? styleW(V.ticks.h).i : 0;           // industrial: a 3-against-4 metal layer
+  if (ti > .3 && i % 3 === 0 && Math.random() < ti) tickHit(feelT(V.ticks, t, i), .5);
+  sub.step(feelT(V.sub, t, i), i);
+  pad.step(t, i);
+  if (on(V.bells)) {
+    if (i === 0 && bar % 4 === 0) mutateMotif();       // the locked motif evolves one note every 4 bars
+    if (rhyOn(V.bells)) { if (rhyHit(V.bells, i)) bellHit(feelT(V.bells, t, i), Math.random() < clamp(V.bells.h.sty.x) ? i : undefined); }
+    else if (Math.random() < clamp(V.bells.h.sty.x)) { if (euclid(Math.round(1 + V.bells.h.x * 9), 16, (i + 13) % 16)) bellHit(feelT(V.bells, t, i), i); }
+    else if (i % 2 === 0 && Math.random() < .03 + V.bells.h.x * V.bells.h.x * .7) bellHit(feelT(V.bells, t + (Math.random() < .3 ? STEP : 0), i));
+  }
+  textureStep(t);
+  step++; if (step % 16 === 0) bar++;
+}
+function scheduler() {
+  glide(ctx.currentTime);
+  while (nextTime < ctx.currentTime + .12) { scheduleStep(nextTime); nextTime += STEP; }
+}
+async function startAudio() {
+  if (!ctx) initAudio();
+  if (ctx.state === "suspended") ctx.resume().catch(() => {});   // browsers keep sound off until the first click or key
+  if (!timer) {
+    nextTime = ctx.currentTime + .1;
+    buildBells(); const c = chordFor(0); pad.chord(nextTime, c.chord); sub.tune(nextTime, c.root);
+    for (const v of VOICES) if (v.active) fade(v, true);   // the opening bed fades in
+    timer = setInterval(scheduler, 25);
+  }
+}
+
+/* =====================================================================
+   FIELD GEOMETRY + VISUALS
+   ===================================================================== */
+const cv = document.getElementById("field"), g2 = cv.getContext("2d");
+let W = 0, H = 0, M = 0;
+function resize() {
+  const r = devicePixelRatio || 1; W = innerWidth; H = innerHeight; M = Math.round(Math.min(W, H) * .085);
+  cv.width = W * r; cv.height = H * r; g2.setTransform(r, 0, 0, r, 0, 0);
+}
+addEventListener("resize", resize); resize();
+const fx = x => M + x * (W - 2 * M), fy = y => H - M - y * (H - 2 * M);
+const toField = (px, py) => [(px - M) / (W - 2 * M), (H - M - py) / (H - 2 * M)];
+const inField = (x, y) => x >= 0 && x <= 1 && y >= 0 && y <= 1;
+
+function park(v) {                                    // silenced voices wait in the left or right gutter
+  v.x = v.x < .5 ? -.2 : 1.2;
+  v.y = clamp(v.y, .06, .94);
+}
+// where a voice is drawn: inside the field, or in the gutter when parked
+function screenPos(v) {
+  const q = Q(v);
+  return [clamp(fx(q.x), M * .45, W - M * .45), clamp(fy(q.y), M * .45, H - M * .45)];
+}
+
+const rings = [];
+function drawHarmonyBands() {
+  const tg = harmonyTarget();
+  for (let m = 0; m < 5; m++) {
+    const y0 = fy(m / 5), y1 = fy((m + 1) / 5), mid = (y0 + y1) / 2;
+    if (m === tg.mode) { g2.fillStyle = "rgba(95,224,184,.07)"; g2.fillRect(fx(0), y1, W - 2 * M, y0 - y1); }
+    g2.strokeStyle = "#16302a"; g2.beginPath(); g2.moveTo(fx(0), y1); g2.lineTo(fx(1), y1); g2.stroke();
+    g2.textAlign = "left";
+    g2.fillStyle = m === HS.mode ? "#8ff0d0" : "#3f6f62"; g2.font = `${m === HS.mode ? 800 : 600} 13px ui-monospace, Menlo, monospace`;
+    g2.fillText(MODES[m][0].toUpperCase(), fx(0) + 12, mid + 2);
+    g2.fillStyle = "#3f6f62"; g2.font = "500 10px ui-monospace, Menlo, monospace"; g2.fillText(MODE_MOOD[m], fx(0) + 12, mid + 17);
+  }
+  g2.fillStyle = "#4f8a78"; g2.font = "600 10px ui-monospace, Menlo, monospace"; g2.textAlign = "center";
+  for (let b = 70; b <= 140; b += 10) { const x = fx((b - 70) / 70); g2.fillText(String(b), x, fy(0) + 16); g2.fillRect(x, fy(0) - 5, 1, 5); }
+  g2.fillText("slower  ←  TEMPO (bpm)  →  faster", W / 2, fy(0) - 10);
+}
+
+function drawRhythmBands() {
+  for (let m = 0; m < 4; m++) {
+    const G = GROUPINGS[m], y0 = fy(m / 4), y1 = fy((m + 1) / 4), mid = (y0 + y1) / 2;
+    g2.strokeStyle = "#2c2015"; g2.beginPath(); g2.moveTo(fx(0), y1); g2.lineTo(fx(1), y1); g2.stroke();
+    g2.textAlign = "left"; g2.fillStyle = "#b07a4c"; g2.font = "700 12px ui-monospace, Menlo, monospace";
+    g2.fillText(G.name, fx(0) + 12, mid + 2);
+    g2.fillStyle = "#6e5038"; g2.font = "500 10px ui-monospace, Menlo, monospace"; g2.fillText(G.mood, fx(0) + 12, mid + 17);
+    const starts = groupStarts(G), cw = 9, x0 = fx(1) - 12 - cw * 16;   // the grouping as a strip of 16 steps
+    for (let j = 0; j < 16; j++) { g2.fillStyle = starts.includes(j) ? "#ff9f5a" : "#2c2015"; g2.globalAlpha = starts.includes(j) ? .55 : 1; g2.fillRect(x0 + j * cw, mid - 4, cw - 2, starts.includes(j) ? 8 : 4); }
+    g2.globalAlpha = 1;
+  }
+  for (let i = 1; i < 8; i++) { g2.strokeStyle = i === 4 ? "#2c2015" : "#1a140e"; g2.beginPath(); g2.moveTo(fx(i / 8), fy(0)); g2.lineTo(fx(i / 8), fy(1)); g2.stroke(); }
+  g2.fillStyle = "#8a6545"; g2.font = "600 10px ui-monospace, Menlo, monospace"; g2.textAlign = "center";
+  g2.fillText("on the beat  ←  SYNCOPATION  →  off the beat", W / 2, fy(0) - 10);
+  g2.save(); g2.translate(fx(1) + 22, H / 2); g2.rotate(-Math.PI / 2); g2.fillText("even  ←  GROUPING  →  odd", 0, 0); g2.restore();   // right side: free sounds wait on the left
+}
+function curStep() {                                     // which 16th is sounding now
+  if (!ctx) return -1;
+  const now = ctx.currentTime; let b = null;
+  for (const s of barStarts) if (s <= now) b = s;
+  return b === null ? -1 : Math.floor((now - b) / STEP) % 16;
+}
+function drawRing(v, x, y, r, pat, live, sh) {          // the bar as a ring of 16 dots, the current step lit
+  const cs = curStep(), starts = sh ? groupStarts(groupingOf(v)) : [];   // the grouping you hear
+  for (let j = 0; j < 16; j++) {
+    const a = -Math.PI / 2 + j * Math.PI / 8, px = x + Math.cos(a) * r, py = y + Math.sin(a) * r, hitv = pat[j];
+    g2.fillStyle = v.color;
+    g2.globalAlpha = hitv ? (live ? (j === cs ? 1 : .8) : .35) : (j === cs && live ? .5 : .14);
+    g2.beginPath(); g2.arc(px, py, hitv ? (sh ? 1.6 + hitv * 2.4 : 2) * (j === cs && live ? 1.5 : 1) : 1, 0, Math.PI * 2); g2.fill();
+    if (starts.includes(j)) { g2.strokeStyle = v.color; g2.globalAlpha = .45; g2.lineWidth = 1; g2.beginPath(); g2.moveTo(x + Math.cos(a) * (r + 6), y + Math.sin(a) * (r + 6)); g2.lineTo(x + Math.cos(a) * (r + 10), y + Math.sin(a) * (r + 10)); g2.stroke(); }
+  }
+  g2.globalAlpha = 1;
+}
+function drawKey(now) {
+  const [x, y] = screenPos(KEY), tg = harmonyTarget(), held = grabbed === KEY;
+  KEY.sx = x; KEY.sy = y; KEY.pulse *= .93;
+  const R = 26 + KEY.pulse * 8;
+  // circle of fifths around the light: the current key is lit
+  const cur = ((KEY.fifth % 12) + 12) % 12;
+  g2.font = "600 10px ui-monospace, Menlo, monospace"; g2.textAlign = "center";
+  for (let k = 0; k < 12; k++) {
+    const a = -Math.PI / 2 + (k - cur) * Math.PI / 6, rr = R + 30;
+    g2.fillStyle = k === cur ? "#c9fbe9" : "#3f6f62"; g2.globalAlpha = held || k === cur ? 1 : .6;
+    g2.fillText(NOTE_NAMES[FIFTHS[k]], x + Math.cos(a) * rr, y + Math.sin(a) * rr + 4);
+  }
+  g2.globalAlpha = 1;
+  // chord-motion arc
+  g2.strokeStyle = "#5fe0b8"; g2.lineWidth = 2; g2.globalAlpha = held ? .9 : .5;
+  g2.beginPath(); g2.arc(x, y, R + 9, Math.PI / 2, Math.PI / 2 + Math.max(.04, KEY.motion) * Math.PI * 1.8); g2.stroke(); g2.globalAlpha = 1;
+  g2.shadowColor = KEY.color; g2.shadowBlur = 30 + KEY.pulse * 40;
+  g2.fillStyle = KEY.color; g2.beginPath(); g2.arc(x, y, R, 0, Math.PI * 2); g2.fill(); g2.shadowBlur = 0;
+  g2.fillStyle = "#05140f"; g2.font = "800 20px ui-monospace, Menlo, monospace"; g2.fillText(NOTE_NAMES[tg.key], x, y + 7);
+  g2.fillStyle = "#c9fbe9"; g2.font = "700 11px ui-monospace, Menlo, monospace";
+  g2.fillText(`${MODES[tg.mode][0]} · ${Math.round(70 + clamp(KEY.x) * 70)} bpm · ${PROG_NAMES[tg.prog]}`, x, y + R + 50);
+  if (tg.key !== HS.key || tg.mode !== HS.mode || tg.prog !== HS.prog) { g2.fillStyle = "#5fe0b8"; g2.font = "500 10px ui-monospace, Menlo, monospace"; g2.fillText("→ on the next bar", x, y + R + 64); }
+}
+function drawField(now) {
+  g2.fillStyle = "#05060a"; g2.fillRect(0, 0, W, H);
+
+  // faint camera ghost
+  if (camOn && video.readyState >= 2) {
+    g2.save(); g2.globalAlpha = .1; g2.filter = "grayscale(1) contrast(1.5)";
+    g2.translate(W, 0); g2.scale(-1, 1);
+    const k = Math.max(W / video.videoWidth, H / video.videoHeight);
+    g2.drawImage(video, (W - video.videoWidth * k) / 2, (H - video.videoHeight * k) / 2, video.videoWidth * k, video.videoHeight * k);
+    g2.restore();
+  }
+
+  // grid + quadrants
+  const TX = panel === "texture", SY = panel === "style", HR = panel === "harmony", RY = panel === "rhythm";
+  const pc = (snd, tex, sty, har, rhy = "#1a140e") => RY ? rhy : HR ? har : SY ? sty : TX ? tex : snd;
+  g2.strokeStyle = pc("#141722", "#1e1910", "#1a1222", "#0f1d1a"); g2.lineWidth = 1;
+  for (let i = 1; i < 8 && !HR && !RY; i++) {        // the harmony and rhythm panels draw their own bands instead
+    if (i === 4) continue;
+    g2.beginPath(); g2.moveTo(fx(i / 8), fy(0)); g2.lineTo(fx(i / 8), fy(1)); g2.stroke();
+    g2.beginPath(); g2.moveTo(fx(0), fy(i / 8)); g2.lineTo(fx(1), fy(i / 8)); g2.stroke();
+  }
+  g2.strokeStyle = pc("#232838", "#33291a", "#2e2040", "#1c332d", "#2c2215");
+  if (!HR && !RY) { g2.beginPath(); g2.moveTo(fx(.5), fy(0)); g2.lineTo(fx(.5), fy(1)); g2.moveTo(fx(0), fy(.5)); g2.lineTo(fx(1), fy(.5)); g2.stroke(); }
+  const edgeAlert = grabbed && !inField(cursor.x, cursor.y);
+  g2.strokeStyle = edgeAlert ? "#ff7a66" : pc("#2b3042", "#5a4523", "#4a3366", "#2e5248", "#5a3d1e"); g2.lineWidth = edgeAlert ? 2 : 1;
+  g2.strokeRect(fx(0), fy(1), W - 2 * M, H - 2 * M);
+
+  g2.font = "600 10px ui-monospace, Menlo, monospace";
+  if (RY) drawRhythmBands();
+  else if (HR) drawHarmonyBands();
+  else if (SY) {                                               // two axes, and the acid zone in the far corner
+    // acid begins where locked × industrial passes 0.45 (the curve x·y = 0.45) and grows into the corner
+    const pts = []; for (let k = 0; k <= 40; k++) { const ax = .45 + .55 * k / 40; pts.push([fx(ax), fy(Math.min(1, .45 / ax))]); }
+    const grad = g2.createRadialGradient(fx(1), fy(1), 0, fx(1), fy(1), Math.hypot(fx(1) - fx(.45), fy(.45) - fy(1)));
+    grad.addColorStop(0, "rgba(214,255,90,.16)"); grad.addColorStop(1, "rgba(214,255,90,.02)");
+    g2.fillStyle = grad; g2.beginPath(); g2.moveTo(fx(1), fy(1)); pts.forEach(([a, b]) => g2.lineTo(a, b)); g2.closePath(); g2.fill();
+    g2.strokeStyle = "rgba(214,255,90,.55)"; g2.setLineDash([4, 6]); g2.lineWidth = 1.5;
+    g2.beginPath(); pts.forEach(([a, b], k) => k ? g2.lineTo(a, b) : g2.moveTo(a, b)); g2.stroke(); g2.setLineDash([]);
+    g2.font = "800 15px ui-monospace, Menlo, monospace"; g2.fillStyle = "#d6ff5a"; g2.textAlign = "right";
+    g2.fillText("ACID", fx(1) - 14, fy(1) + 26);
+    g2.font = "500 10px ui-monospace, Menlo, monospace"; g2.fillStyle = "#a9c94c"; g2.fillText("resonance and slides grow toward the corner", fx(1) - 14, fy(1) + 41);
+    g2.font = "600 10px ui-monospace, Menlo, monospace"; g2.fillStyle = "#6a5590"; g2.textAlign = "center";
+    g2.fillText("loose · chance  ←  GROOVE  →  locked · euclidean", W / 2, fy(0) - 10);
+    g2.save(); g2.translate(fx(0) - 22, H / 2); g2.rotate(-Math.PI / 2); g2.fillText("organic  ←  MATERIAL  →  industrial", 0, 0); g2.restore();
+  } else {
+    const LB = TX ? ["SMOOTH · DUSTY", "SMOOTH · CLEAN", "GRAINY · DUSTY", "GRAINY · CLEAN", "smooth  ←  GRAIN  →  granular", "clean  ←  DUST  →  dusty"]
+                  : ["BRIGHT · SPARSE", "DEEP · SPARSE", "BRIGHT · DENSE", "DEEP · DENSE", "sparse  ←  TIME  →  dense", "dark  ←  TONE  →  bright"];
+    g2.fillStyle = TX ? "#6e5a36" : "#3a4054";
+    g2.textAlign = "left"; g2.fillText(LB[0], fx(0) + 10, fy(1) + 18); if (!TX) g2.fillText(LB[1], fx(0) + 10, fy(0) - 10);
+    g2.textAlign = "right"; g2.fillText(LB[2], fx(1) - 10, fy(1) + 18); g2.fillText(LB[3], fx(1) - 10, fy(0) - 10);
+    g2.textAlign = "center"; g2.fillStyle = TX ? "#8a7246" : "#4a5068";
+    g2.fillText(LB[4], W / 2, fy(0) - 10);
+    g2.save(); g2.translate(fx(0) - 22, H / 2); g2.rotate(-Math.PI / 2); g2.fillText(LB[5], 0, 0); g2.restore();
+  }
+  if (TX) {                                               // the clean corner
+    g2.strokeStyle = "#5a4523"; g2.setLineDash([3, 5]); g2.strokeRect(fx(0), fy(.25), fx(.25) - fx(0), fy(0) - fy(.25)); g2.setLineDash([]);
+    g2.fillStyle = "#8a7246"; g2.textAlign = "left"; g2.fillText("CLEAN", fx(0) + 8, fy(.25) + 14);
+  }
+  if (edgeAlert) { g2.fillStyle = "#ff7a66"; g2.textAlign = "center"; g2.fillText(RY ? "let go here for free patterns again" : HR ? "let go here to reset key and tempo" : SY ? "let go here to reset its style" : TX ? "let go here to make it clean again" : "let go here to silence it", W / 2, fy(1) - 14); }
+
+  // ripples
+  for (let i = rings.length - 1; i >= 0; i--) {
+    const r = rings[i]; r.r += r.speed; r.a *= .955;
+    if (r.a < .02) { rings.splice(i, 1); continue; }
+    g2.strokeStyle = r.color; g2.globalAlpha = r.a; g2.lineWidth = r.w;
+    g2.beginPath(); g2.arc(r.x, r.y, r.r, 0, Math.PI * 2); g2.stroke();
+  }
+  g2.globalAlpha = 1;
+
+  // voices
+  const t = now / 1000;
+  for (const v of HR ? [] : VOICES) {
+    const [x, y] = screenPos(v), live = v.active || (v === grabbed && panel === "sound");
+    v.sx = x; v.sy = y;
+    v.trail.push([x, y]); if (v.trail.length > 40) v.trail.shift();
+    if (v === grabbed && v.trail.length > 2) {
+      g2.strokeStyle = v.color; g2.lineWidth = 2; g2.globalAlpha = .35; g2.beginPath();
+      v.trail.forEach(([a, b], k) => k ? g2.lineTo(a, b) : g2.moveTo(a, b)); g2.stroke(); g2.globalAlpha = 1;
+    }
+    v.pulse *= .9;
+    const breathe = (v.id === "pad" || v.id === "sub") ? Math.sin(t * (.6 + v.x * 2) + v.y * 6) * 3 : 0;
+    const rad = live ? (11 + v.pulse * 16 + breathe) * (1 - v.z * .4) * (.55 + v.vol * .62) : 6;
+    if (live) {
+      const lit = ctx && ctx.currentTime < (v.fadeEnd || 0) ? .25 + .75 * clamp(v.out.gain.value / (v.level * volF(v))) : 1;
+      g2.shadowColor = v.color; g2.shadowBlur = 24 + v.pulse * 40 + v.z * 40; g2.globalAlpha = (1 - v.z * .4) * lit;
+      g2.fillStyle = v.color; g2.beginPath(); g2.arc(x, y, rad, 0, Math.PI * 2); g2.fill(); g2.shadowBlur = 0; g2.globalAlpha = 1;
+      if (!RY && (v.echo > .02 || v === grabbed)) {      // echo dial
+        g2.strokeStyle = v.color; g2.lineWidth = 2; g2.globalAlpha = v === grabbed ? .9 : .45;
+        g2.beginPath(); g2.arc(x, y, rad + 7, -Math.PI / 2, -Math.PI / 2 + Math.max(.04, v.echo) * Math.PI * 1.8); g2.stroke(); g2.globalAlpha = 1;
+      }
+    } else {
+      g2.strokeStyle = v.color; g2.globalAlpha = .55; g2.lineWidth = 1.5;
+      g2.beginPath(); g2.arc(x, y, rad, 0, Math.PI * 2); g2.stroke(); g2.globalAlpha = 1;
+    }
+    const gr = grainOf(v) * v.tmix, du = dustOf(v) * v.tmix;
+    if (gr > 0) {                                         // grain: a broken ring
+      g2.strokeStyle = v.color; g2.globalAlpha = live ? .8 : .4; g2.lineWidth = 1.5; g2.setLineDash([2, 2 + (1 - gr) * 7]);
+      g2.beginPath(); g2.arc(x, y, rad + 3, t * 2, t * 2 + Math.PI * 2); g2.stroke(); g2.setLineDash([]); g2.globalAlpha = 1;
+    }
+    if (du > 0) {                                         // dust: flickering specks
+      g2.fillStyle = v.color;
+      for (let k = 0; k < Math.round(du * 16); k++) {
+        const a = Math.random() * Math.PI * 2, r = rad + 4 + Math.random() * 14;
+        g2.globalAlpha = (live ? .9 : .4) * Math.random(); g2.fillRect(x + Math.cos(a) * r, y + Math.sin(a) * r, 1.5, 1.5);
+      }
+      g2.globalAlpha = 1;
+    }
+    if (SY && (Math.abs(v.vol - .73) > .02 || v === grabbed)) {   // volume dial
+      g2.strokeStyle = "#e2d0ff"; g2.lineWidth = 2; g2.globalAlpha = v === grabbed ? .9 : .5;
+      g2.beginPath(); g2.arc(x, y, rad + 9, Math.PI / 2, Math.PI / 2 + Math.max(.04, v.vol) * Math.PI * 1.8); g2.stroke(); g2.globalAlpha = 1;
+    }
+    if (TX && (grainOf(v) > 0 || dustOf(v) > 0 || v === grabbed)) {   // texture mix dial
+      g2.strokeStyle = "#f0d8a8"; g2.lineWidth = 2; g2.globalAlpha = v === grabbed ? .9 : .5;
+      g2.beginPath(); g2.arc(x, y, rad + 9, Math.PI / 2, Math.PI / 2 + Math.max(.04, v.tmix) * Math.PI * 1.8); g2.stroke(); g2.globalAlpha = 1;
+    }
+    if (RY) {                                             // the pattern ring, plus mutation (top) and interlock (bottom) arcs
+      const sh = shaped(v), rr = sh ? rad + 13 : 15;
+      drawRing(v, x, y, rr, sh ? v.pat : v.prev, live, sh);
+      if (sh && (v === grabbed || Math.abs(v.mut - MUT_HOME) > .02 || Math.abs(v.lock - LOCK_HOME) > .02)) {
+        g2.lineWidth = 2; g2.globalAlpha = v === grabbed ? .9 : .5;
+        g2.strokeStyle = v.color; g2.beginPath(); g2.arc(x, y, rr + 15, -Math.PI / 2, -Math.PI / 2 + Math.max(.04, v.mut) * Math.PI * 1.8); g2.stroke();
+        g2.strokeStyle = "#ffd6b0"; g2.beginPath(); g2.arc(x, y, rr + 15, Math.PI / 2, Math.PI / 2 + Math.max(.04, v.lock) * Math.PI * 1.8); g2.stroke();
+        g2.globalAlpha = 1;
+      }
+    }
+    if (v === selected || v === grabbed) {
+      g2.strokeStyle = v.color; g2.lineWidth = 1.5; g2.setLineDash([4, 5]);
+      g2.beginPath(); g2.arc(x, y, rad + 14 + Math.sin(t * 4) * 2, 0, Math.PI * 2); g2.stroke(); g2.setLineDash([]);
+    }
+    g2.fillStyle = live ? "#cfd3df" : "#5b6178"; g2.font = "600 11px ui-monospace, Menlo, monospace"; g2.textAlign = "center";
+    const lo = RY ? (shaped(v) ? rad + 34 : 30) : rad + 18;
+    g2.fillText(v.name.toUpperCase(), x, y + lo);
+    if (RY && !shaped(v) && v !== grabbed) { g2.fillStyle = "#6e5038"; g2.font = "500 9px ui-monospace, Menlo, monospace"; g2.fillText("free", x, y + lo + 12); }
+    if (v === grabbed) { g2.fillStyle = v.color; g2.font = "500 10px ui-monospace, Menlo, monospace"; const x = clamp(v.sx, 170, W - 170);
+      { const w = styleW(v);
+      g2.fillText(RY ? (shaped(v) ? `${v.rhy.x < .5 ? "on the beat " + Math.round((1 - clamp(v.rhy.x)) * 100) : "off the beat " + Math.round(clamp(v.rhy.x) * 100)} · ${groupingOf(v, false).name} · ${v.mut < .08 ? "frozen" : "mutation " + Math.round(v.mut * 100)} · interlock ${Math.round(v.lock * 100)}` : "free pattern")
+                : SY ? `${v.sty.x < .5 ? "loose " + Math.round((1 - clamp(v.sty.x)) * 100) : "locked " + Math.round(clamp(v.sty.x) * 100)} · ${v.sty.y < .5 ? "organic " + Math.round((1 - clamp(v.sty.y)) * 100) : "industrial " + Math.round(clamp(v.sty.y) * 100)}${w.c > .02 ? ` · acid ${Math.round(w.c * 100)}` : ''} · vol ${Math.round(v.vol / .73 * 100)}%`
+                : TX ? `grain ${Math.round(grainOf(v) * 100)} · dust ${Math.round(dustOf(v) * 100)} · mix ${Math.round(v.tmix * 100)}%`
+                : `depth ${Math.round(v.z * 100)} · echo ${Math.round(v.echo * 100)}`, x, y + lo + 14); } }
+    else if (styleW(v).c > .2) { g2.fillStyle = "#d6ff5a"; g2.font = "600 9px ui-monospace, Menlo, monospace"; g2.fillText("acid", x, y + rad + 30); }
+  }
+
+  if (HR) drawKey(now);
+
+  // right-hand cursor
+  if (cursor.visible) {
+    const x = fx(cursor.x), y = fy(cursor.y), c = grabbed ? grabbed.color : selected ? selected.color : "#7d8394";
+    g2.strokeStyle = c; g2.lineWidth = 1.5;
+    g2.beginPath(); g2.moveTo(x - 16, y); g2.lineTo(x - 6, y); g2.moveTo(x + 6, y); g2.lineTo(x + 16, y);
+    g2.moveTo(x, y - 16); g2.lineTo(x, y - 6); g2.moveTo(x, y + 6); g2.lineTo(x, y + 16); g2.stroke();
+    if (grabbed) { g2.fillStyle = c; g2.globalAlpha = .25; g2.beginPath(); g2.arc(x, y, 26, 0, Math.PI * 2); g2.fill(); g2.globalAlpha = 1; }
+  }
+
+  // hand skeletons (faint)
+  for (const h of [hands.left, hands.right]) if (h) drawSkeleton(h.L, h === hands.left ? (selected ? selected.color : "#7d8394") : "#7d8394");
+}
+
+const BONES = [[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[5,9],[9,10],[10,11],[11,12],[9,13],[13,14],[14,15],[15,16],[13,17],[17,18],[18,19],[19,20],[0,17]];
+function camToScreen(p) {
+  const vw = video.videoWidth || 16, vh = video.videoHeight || 9, k = Math.max(W / vw, H / vh);
+  return [W - (p.x * vw * k + (W - vw * k) / 2), p.y * vh * k + (H - vh * k) / 2];
+}
+function drawSkeleton(L, color) {
+  g2.strokeStyle = color; g2.globalAlpha = .45; g2.lineWidth = 2; g2.beginPath();
+  for (const [a, b] of BONES) { const [x1, y1] = camToScreen(L[a]), [x2, y2] = camToScreen(L[b]); g2.moveTo(x1, y1); g2.lineTo(x2, y2); }
+  g2.stroke(); g2.globalAlpha = 1;
+}
+
+/* =====================================================================
+   INTERACTION · camera hands + mouse/touch
+   ===================================================================== */
+let selected = null, grabbed = null, camOn = false, landmarker = null, swapHands = false, tempoGlide = null;
+const cursor = { x: .5, y: .5, visible: false };
+const hands = { left: null, right: null };
+const video = document.getElementById("cam");
+
+function grab(v) {
+  const q = Q(v); grabbed = v; v.startX = q.x; v.startY = q.y; posHist.length = 0;
+  if (panel === "sound" && !v.active) setActive(v, true);   // on the texture panel, silent sounds stay silent
+}
+function settle(v) {                                    // where a dropped sound ends up on the current panel
+  if (panel === "texture") { if (!inField(v.tex.x, v.tex.y)) { Object.assign(v.tex, v.texHome); v.tmix = 1; } if (ctx) applyTex(v, ctx.currentTime); return; }
+  if (panel === "style") { if (!inField(v.sty.x, v.sty.y)) Object.assign(v.sty, v.styHome); if (ctx) applyStyle(v, ctx.currentTime); return; }
+  if (v === KEY) { if (!inField(KEY.x, KEY.y)) Object.assign(KEY, KEY_HOME); tempoGlide = null; return; }
+  if (panel === "rhythm") { if (!inField(v.rhy.x, v.rhy.y)) { Object.assign(v.rhy, v.rhyHome); v.mut = MUT_HOME; v.lock = LOCK_HOME; } return; }   // past the edge: free patterns
+  if (inField(v.x, v.y)) setActive(v, true); else { park(v); setActive(v, false); }
+}
+function release() {
+  const v = grabbed; grabbed = null;
+  if (v) settle(v);
+}
+function setPanel(name) {
+  if (name === panel || !PANELS.includes(name)) return;
+  if (grabbed) { grabRef = null; rightGrab = false; mouseDrag = false; release(); }
+  panel = name;
+  for (const v of VOICES) v.trail.length = 0;
+  document.querySelectorAll("#tabs button").forEach(b => { b.classList.toggle("on", b.dataset.p === panel); b.setAttribute("aria-selected", b.dataset.p === panel); });
+  document.body.classList.toggle("tex", panel === "texture");
+  document.body.classList.toggle("sty", panel === "style");
+  document.body.classList.toggle("har", panel === "harmony");
+  document.body.classList.toggle("rhy", panel === "rhythm");
+}
+function swapPanel() { setPanel(PANELS[(PANELS.indexOf(panel) + 1) % PANELS.length]); }
+
+// mouse / touch: drag any light directly
+cv.addEventListener("pointerdown", e => {
+  if (!ctx) return;
+  const [x, y] = toField(e.clientX, e.clientY);
+  let best = null, bd = 44;
+  for (const v of panel === "harmony" ? [KEY] : VOICES) { const d = Math.hypot((v.sx ?? 0) - e.clientX, (v.sy ?? 0) - e.clientY); if (d < bd) { bd = d; best = v; } }
+  if (best) { cv.setPointerCapture(e.pointerId); selected = best; grab(best); cursor.x = x; cursor.y = y; mouseDrag = true; }
+});
+let mouseDrag = false;
+cv.addEventListener("pointermove", e => {
+  if (!mouseDrag) return;
+  const [x, y] = toField(e.clientX, e.clientY);
+  cursor.x = clamp(x, -.1, 1.1); cursor.y = clamp(y, -.1, 1.1);
+});
+let lastKeyWheel = 0;
+cv.addEventListener("wheel", e => {                       // wheel on a light: echo · shift+wheel: depth
+  if (panel === "harmony") {                              // wheel: key · shift+wheel: chords
+    if (!ctx || Math.hypot((KEY.sx ?? 0) - e.clientX, (KEY.sy ?? 0) - e.clientY) > 90) return;
+    e.preventDefault();
+    if (e.shiftKey) KEY.motion = clamp(KEY.motion - Math.sign(e.deltaY) * .05);
+    else if (performance.now() - lastKeyWheel > 180) { KEY.fifth -= Math.sign(e.deltaY); lastKeyWheel = performance.now(); }
+    return;
+  }
+  let v = grabbed;
+  if (!v) { let bd = 44; for (const c of VOICES) { const d = Math.hypot((c.sx ?? 0) - e.clientX, (c.sy ?? 0) - e.clientY); if (d < bd) { bd = d; v = c; } } }
+  if (!v || !ctx) return;
+  e.preventDefault();
+  const delta = -Math.sign(e.deltaY) * .05;
+  if (panel === "rhythm") { if (e.shiftKey) v.mut = clamp(v.mut + delta); else v.lock = clamp(v.lock + delta); return; }   // wheel: interlock · shift+wheel: mutation
+  if (e.shiftKey) { if (panel === "texture") v.tmix = clamp(v.tmix + delta); else if (panel === "style") v.vol = clamp(v.vol + delta); else v.z = clamp(v.z + delta); } else v.echo = clamp(v.echo + delta);
+  wheelVoice = v;
+}, { passive: false });
+cv.addEventListener("pointerup", () => { if (mouseDrag) { mouseDrag = false; release(); selected = null; } });
+
+// hand features
+const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+const palmOf = L => [0, 5, 9, 13, 17].reduce((p, i) => ({ x: p.x + L[i].x / 5, y: p.y + L[i].y / 5 }), { x: 0, y: 0 });
+const palmSize = L => dist(L[0], L[9]);
+function openness(L) { const s = palmSize(L); return clamp(([8, 12, 16, 20].reduce((t, i) => t + dist(L[i], L[0]), 0) / 4 / s - 1) / .9); }
+function fingers(L) {
+  let n = 0;
+  for (const [tip, pip] of [[8, 6], [12, 10], [16, 14], [20, 18]]) if (dist(L[tip], L[0]) > dist(L[pip], L[0]) * 1.12) n++;
+  if (dist(L[4], L[5]) > palmSize(L) * .65) n++;
+  return n;
+}
+
+let poseCand = -1, poseSince = 0, leftSeen = 0, rightSeen = 0, rightSince = 0, openSm = 1, rightGrab = false;
+let grabRef = null, wheelVoice = null, fistSince = 0, openSince = 0, lostSince = 0, jumpCount = 0;
+let lastL = null, lastR = null;                          // where each hand was last seen, so roles survive one hand leaving
+const posHist = [];                                      // recent positions of the held sound
+const handAngle = L => Math.atan2(L[9].y - L[0].y, L[0].x - L[9].x);   // wrist → middle knuckle, in mirrored screen space
+const wrapAngle = a => Math.atan2(Math.sin(a), Math.cos(a));
+
+function handleHands(res, now) {
+  const list = (res.landmarks || []).map((L, i) => {
+    const label = res.handednesses?.[i]?.[0]?.categoryName;   // labels assume a mirrored image, ours isn't: swap
+    let isRight = label === "Left"; if (swapHands) isRight = !isRight;
+    const p = palmOf(L); return { L, isRight, sx: 1 - p.x, sy: p.y };
+  });
+
+  // Who is who: with two hands, by position. With one hand, it keeps the role of the hand it is closest to
+  // from the last 1.5 s; the tracker's own left/right label is only used when there is no recent history.
+  let left = null, right = null;
+  if (list.length >= 2) { list.sort((a, b) => a.sx - b.sx); left = list[0]; right = list[list.length - 1]; }
+  else if (list.length === 1) {
+    const h = list[0], d = q => q && now - q.t < 1500 ? Math.hypot(h.sx - q.x, h.sy - q.y) : Infinity;
+    const dl = d(lastL), dr = d(lastR);
+    if (dl === Infinity && dr === Infinity) { if (h.isRight) right = h; else left = h; }
+    else if (dr < dl) right = h; else left = h;
+  }
+  if (left) lastL = { x: left.sx, y: left.sy, t: now };
+  if (right) lastR = { x: right.sx, y: right.sy, t: now };
+  hands.left = left; hands.right = right;
+
+  // LEFT: pose → which sound (open hand = nothing)
+  if (left) {
+    leftSeen = now;
+    const n = fingers(left.L);
+    if (n !== poseCand) { poseCand = n; poseSince = now; }
+    if (now - poseSince > 220) selected = n >= 5 ? null : VOICES[n];
+  } else if (now - leftSeen > 450 && !mouseDrag && !grabbed) selected = null;
+
+  // RIGHT: cursor + grab/release
+  if (right) {
+    if (now - rightSeen > 300) rightSince = now;        // hand (re)appeared: let it settle before it can grab
+    rightSeen = now; lostSince = 0;
+    const nx = clamp((right.sx - .28) / .64 * 1.2 - .1, -.12, 1.12);
+    const ny = clamp((.86 - right.sy) / .72 * 1.2 - .1, -.12, 1.12);
+    if (!cursor.visible || Math.hypot(nx - cursor.x, ny - cursor.y) < .35 || ++jumpCount > 3) { cursor.x = nx; cursor.y = ny; jumpCount = 0; }
+    cursor.visible = true;
+    openSm = lerp(openSm, openness(right.L), .5);
+    if (openSm < .3) { openSince = 0; if (!fistSince) fistSince = now; }
+    else if (openSm > .5) { fistSince = 0; if (!openSince) openSince = now; }
+    const steady = now - rightSince > 250;
+    if (!rightGrab && fistSince && now - fistSince > 120 && steady) {
+      rightGrab = true;
+      if (panel === "harmony") { if (!grabbed) grab(KEY); }   // one light here: the right fist alone grabs it
+      else if (selected && !grabbed && left) grab(selected);  // only grab while the left hand is showing a sound right now
+    } else if (rightGrab && openSince && now - openSince > 100) { rightGrab = false; release(); }
+    if (grabbed && !mouseDrag) {                        // depth = palm size change, echo = wrist twist, both relative to the grab
+      const size = palmSize(right.L), ang = handAngle(right.L);
+      if (!grabRef || grabRef.v !== grabbed) grabRef = { v: grabbed, s0: size, z0: grabbed.z, m0: grabbed.tmix, v0: grabbed.vol, a0: ang, e0: grabbed.echo, h0: KEY.motion, f0: KEY.fifth, u0: grabbed.mut, k0: grabbed.lock };
+      const pull = (1 - size / grabRef.s0) * 1.6;        // pulling back = more (distance on the sound panel, texture mix on the texture panel)
+      if (grabbed === KEY) {                            // pull back = more chords, twist = walk the circle of fifths
+        KEY.motion = lerp(KEY.motion, clamp(grabRef.h0 + pull), .25);
+        KEY.fifth = grabRef.f0 + Math.round(wrapAngle(ang - grabRef.a0) / (Math.PI / 7));
+      }
+      else if (panel === "rhythm") {                    // pull back = evolves more, twist = interlock
+        grabbed.mut = lerp(grabbed.mut, clamp(grabRef.u0 + pull), .25);
+        grabbed.lock = lerp(grabbed.lock, clamp(grabRef.k0 + wrapAngle(ang - grabRef.a0) / (Math.PI * .6)), .25);
+      }
+      else if (panel === "texture") grabbed.tmix = lerp(grabbed.tmix, clamp(grabRef.m0 + pull), .25);
+      else if (panel === "style") grabbed.vol = lerp(grabbed.vol, clamp(grabRef.v0 - pull), .25);   // closer = louder
+      else grabbed.z = lerp(grabbed.z, clamp(grabRef.z0 + pull), .25);
+      if (grabbed !== KEY && panel !== "rhythm") grabbed.echo = lerp(grabbed.echo, clamp(grabRef.e0 + wrapAngle(ang - grabRef.a0) / (Math.PI * .6)), .25);
+    } else grabRef = null;
+  } else if (!mouseDrag) {
+    cursor.visible = false;
+    fistSince = 0; openSince = 0;
+    if (rightGrab) {                                    // the hand left the camera while holding: never fling the sound
+      if (!lostSince) lostSince = now;
+      if (now - lostSince > 200) { rightGrab = false; dropSafely(lostSince); }
+    }
+  }
+}
+
+// Put the held sound back where it was ~0.3 s before the hand started leaving (or where it was picked up).
+function dropSafely(lostAt) {
+  const v = grabbed; if (!v) return;
+  let spot = null;
+  for (let i = posHist.length - 1; i >= 0; i--) if (posHist[i].t <= lostAt - 300) { spot = posHist[i]; break; }
+  if (!spot || !inField(spot.x, spot.y)) spot = { x: v.startX, y: v.startY };
+  const q = Q(v); q.x = spot.x; q.y = spot.y; grabbed = null; grabRef = null;
+  settle(v);
+}
+
+/* =====================================================================
+   MAIN LOOP
+   ===================================================================== */
+let lastVT = -1;
+function frame(now) {
+  if (camOn && landmarker && video.readyState >= 2 && video.currentTime !== lastVT) {
+    lastVT = video.currentTime;
+    handleHands(landmarker.detectForVideo(video, now), now);
+  }
+  if (grabbed && (cursor.visible || mouseDrag)) {
+    const q = Q(grabbed);
+    q.x = lerp(q.x, clamp(cursor.x, -.08, 1.08), .3); q.y = lerp(q.y, clamp(cursor.y, -.08, 1.08), .3);
+    posHist.push({ t: now, x: q.x, y: q.y }); if (posHist.length > 90) posHist.shift();
+  }
+  if (tempoGlide !== null) { KEY.x = lerp(KEY.x, tempoGlide, .03); if (Math.abs(KEY.x - tempoGlide) < .002) { KEY.x = tempoGlide; tempoGlide = null; } }
+  if (ctx) {
+    while (vis.length && vis[0].t <= ctx.currentTime) {
+      const e = vis.shift(), v = e.v;
+      if (v !== KEY && !audible(v, e.t)) continue;   // fading-out sounds still pulse
+      v.pulse = Math.max(v.pulse, e.amt);
+      const big = { kick: 70, ticks: 26, sub: 50, pad: 140, bells: 60, key: 160 }[v.id];
+      const shown = panel === "harmony" ? v === KEY : v !== KEY;
+      if (!shown) continue;                                    // ripples only for what this panel shows
+      rings.push({ x: v.sx ?? fx(v.x), y: v.sy ?? fy(v.y), r: 12, speed: big / 30, a: .55 * e.amt + .1, w: v.id === "pad" ? 3 : 1.5, color: v.color });
+    }
+    const n = ctx.currentTime; sub.tone(n); pad.tone(n); applyMaster(n);
+    wheelVoice = null;
+  }
+  drawField(now); hud();
+  requestAnimationFrame(frame);
+}
+
+// left-hand pose icons: fist, then 1–4 fingers up. Paths from Tabler Icons (MIT, tabler.io/icons):
+// hand-finger, hand-two-fingers, hand-three-fingers, hand-stop; the fist is the same parts with every finger folded.
+// Mirrored so they read as your left hand.
+const HAND_PATHS = [["M8 13v-2.5a1.5 1.5 0 0 1 3 0v1.5", "M11 11.5v-1a1.5 1.5 0 0 1 3 0v1.5", "M14 10.5a1.5 1.5 0 0 1 3 0v1.5", "M17 11.5a1.5 1.5 0 0 1 3 0v4.5a6 6 0 0 1 -6 6h-2h.208a6 6 0 0 1 -5.012 -2.7a69.74 69.74 0 0 1 -.196 -.3c-.312 -.479 -1.407 -2.388 -3.286 -5.728a1.5 1.5 0 0 1 .536 -2.022a1.867 1.867 0 0 1 2.28 .28l1.47 1.47"], ["M8 13v-8.5a1.5 1.5 0 0 1 3 0v7.5", "M11 11.5v-2a1.5 1.5 0 1 1 3 0v2.5", "M14 10.5a1.5 1.5 0 0 1 3 0v1.5", "M17 11.5a1.5 1.5 0 0 1 3 0v4.5a6 6 0 0 1 -6 6h-2h.208a6 6 0 0 1 -5.012 -2.7a69.74 69.74 0 0 1 -.196 -.3c-.312 -.479 -1.407 -2.388 -3.286 -5.728a1.5 1.5 0 0 1 .536 -2.022a1.867 1.867 0 0 1 2.28 .28l1.47 1.47"], ["M8 13v-8.5a1.5 1.5 0 0 1 3 0v7.5", "M11 5.5v-2a1.5 1.5 0 1 1 3 0v8.5", "M14 10.5a1.5 1.5 0 0 1 3 0v1.5", "M17 11.5a1.5 1.5 0 0 1 3 0v4.5a6 6 0 0 1 -6 6h-2h.208a6 6 0 0 1 -5.012 -2.7a69.74 69.74 0 0 1 -.196 -.3c-.312 -.479 -1.407 -2.388 -3.286 -5.728a1.5 1.5 0 0 1 .536 -2.022a1.867 1.867 0 0 1 2.28 .28l1.47 1.47"], ["M8 13v-8.5a1.5 1.5 0 0 1 3 0v7.5", "M11 5.5v-2a1.5 1.5 0 1 1 3 0v8.5", "M14 5.5a1.5 1.5 0 0 1 3 0v6.5", "M17 11.5a1.5 1.5 0 0 1 3 0v4.5a6 6 0 0 1 -6 6h-2h.208a6 6 0 0 1 -5.012 -2.7a69.74 69.74 0 0 1 -.196 -.3c-.312 -.479 -1.407 -2.388 -3.286 -5.728a1.5 1.5 0 0 1 .536 -2.022a1.867 1.867 0 0 1 2.28 .28l1.47 1.47"], ["M8 13v-7.5a1.5 1.5 0 0 1 3 0v6.5", "M11 5.5v-2a1.5 1.5 0 1 1 3 0v8.5", "M14 5.5a1.5 1.5 0 0 1 3 0v6.5", "M17 7.5a1.5 1.5 0 0 1 3 0v8.5a6 6 0 0 1 -6 6h-2h.208a6 6 0 0 1 -5.012 -2.7a69.74 69.74 0 0 1 -.196 -.3c-.312 -.479 -1.407 -2.388 -3.286 -5.728a1.5 1.5 0 0 1 .536 -2.022a1.867 1.867 0 0 1 2.28 .28l1.47 1.47"]];
+function handIcon(n) {
+  return `<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6"
+    stroke-linecap="round" stroke-linejoin="round" style="transform:scaleX(-1)">${HAND_PATHS[n].map(d => `<path d="${d}"/>`).join("")}</svg>`;
+}
+const legend = document.getElementById("legend");
+for (const v of VOICES) {
+  const d = document.createElement("div"); d.className = "lv"; d.style.color = v.color; d.dataset.id = v.id;
+  d.innerHTML = `<i></i><em title="left hand: ${VOICES.indexOf(v) ? VOICES.indexOf(v) + " finger" + (VOICES.indexOf(v) > 1 ? "s" : "") : "fist"}">${handIcon(VOICES.indexOf(v))}</em><span>${v.name}</span>`; legend.append(d); v.el = d;
+}
+function hud() {
+  for (const v of VOICES) { v.el.classList.toggle("on", v.active || v === grabbed); v.el.classList.toggle("sel", v === selected || v === grabbed); }
+  const h = document.getElementById("hint");
+  document.getElementById("unlock").hidden = !ctx || ctx.state === "running";
+  if (!ctx) h.textContent = "";
+  else if (grabbed === KEY) h.textContent = inField(cursor.x, cursor.y) || mouseDrag && inField(KEY.x, KEY.y)
+    ? (camOn ? "← → tempo · ↑ ↓ mood · twist for key · pull back for more chords · open your hand to drop" : "← → tempo · ↑ ↓ mood · drop it where it feels right")
+    : "release to reset key and tempo";
+  else if (panel === "harmony") h.textContent = camOn ? "harmony · close your right hand to grab the key" : "harmony · drag the key · wheel: key · shift+wheel: chords";
+  else if (grabbed) { const nm = grabbed.name.toLowerCase();
+    h.textContent = panel === "texture"
+      ? (inField(cursor.x, cursor.y) || mouseDrag && inField(Q(grabbed).x, Q(grabbed).y) ? `texturing ${nm} · pull back for more mix · open your hand to drop it` : `release to make ${nm} clean again`)
+      : panel === "rhythm"
+      ? (inField(cursor.x, cursor.y) || mouseDrag && inField(Q(grabbed).x, Q(grabbed).y) ? (camOn ? `shaping ${nm} · pull back = evolving · twist = interlock` : `shaping ${nm} · ← → syncopation · ↑ ↓ grouping`) : `release for a free ${nm} pattern`)
+      : panel === "style"
+      ? (inField(cursor.x, cursor.y) || mouseDrag && inField(Q(grabbed).x, Q(grabbed).y) ? `styling ${nm} · push in = louder · pull back = quieter` : `release to reset ${nm}'s style`)
+      : (inField(cursor.x, cursor.y) || mouseDrag && inField(grabbed.x, grabbed.y) ? `moving ${nm} · open your hand to drop it` : `release to silence ${nm}`); }
+  else if (selected) h.textContent = `${selected.name.toLowerCase()} selected · close your right hand to grab it`;
+  else if (panel === "texture") h.textContent = camOn ? "texture panel · right = grain, up = dust · pull back for more mix" : "texture panel · right = grain, up = dust · shift+wheel: mix";
+  else if (panel === "rhythm") h.textContent = camOn ? "rhythm · bring a sound in to shape its pattern · pull back = evolving · twist = interlock" : "rhythm · drag a sound in · wheel: interlock · shift+wheel: mutation";
+  else if (panel === "style") h.textContent = camOn ? "style · push in / pull back for volume" : "style · drag a light · shift+scroll: volume";
+  else h.textContent = camOn ? "left hand: choose a sound by its shape · 1–5 panels · 0 help" : "drag a light · scroll: echo · shift+scroll: depth · 1–5 panels · 0 help";
+  document.getElementById("tempoTxt").textContent = `${Math.round(BPM)} bpm · ${NOTE_NAMES[HS.key]} ${MODES[HS.mode][0]}`;
+  document.getElementById("status").textContent = ({ starting: "starting camera…", on: "camera", off: "camera off · mouse" })[camState] + (masterF < .97 ? ` · filter ${Math.round(masterF * 100)}%` : "");
+}
+requestAnimationFrame(frame);
+
+/* =====================================================================
+   START
+   ===================================================================== */
+const MP = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14";
+const MODEL = "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task";
+let camState = "starting";                               // starting · on · off
+
+document.querySelectorAll("#tabs button").forEach(b => b.onclick = () => { if (ctx) setPanel(b.dataset.p); });
+const helpEl = document.getElementById("help");
+const toggleHelp = show => { helpEl.hidden = show === undefined ? !helpEl.hidden : !show; };
+document.getElementById("helpBtn").onclick = e => { e.stopPropagation(); toggleHelp(); };
+helpEl.addEventListener("pointerdown", () => toggleHelp(false));
+
+// Sound: the music starts at once, but browsers only let it be heard after a first click, tap or key press.
+const unlock = () => { if (ctx && ctx.state !== "running") ctx.resume().catch(() => {}); };
+for (const ev of ["pointerdown", "keydown", "touchstart"]) addEventListener(ev, unlock, { capture: true });
+
+async function startCamera() {
+  try {
+    const { FilesetResolver, HandLandmarker } = await import(`${MP}/vision_bundle.mjs`);
+    const files = await FilesetResolver.forVisionTasks(`${MP}/wasm`);
+    landmarker = await HandLandmarker.createFromOptions(files, {
+      baseOptions: { modelAssetPath: MODEL, delegate: "GPU" }, runningMode: "VIDEO", numHands: 2,
+      minHandDetectionConfidence: .6, minHandPresenceConfidence: .5, minTrackingConfidence: .5
+    });
+    video.srcObject = await navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720 }, audio: false });
+    await video.play();
+    camOn = true; camState = "on";
+  } catch (e) {
+    console.warn("camera unavailable, mouse mode:", e);
+    camState = "off";
+  }
+}
+startAudio();
+startCamera();
+window.handgroove = { glide, get bpmH() { return bpmH; }, V, VOICES, fx, fy, handleHands, get analyser() { return analyser; }, get masterF() { return masterF; }, get grabbed() { return grabbed; }, get selected() { return selected; }, swapPanel, get panel() { return panel; }, KEY, GROUPINGS, shaped, rhythmWeights, buildPatterns, rhyHit, densityOf, settle, setPanel, get HS() { return HS; }, get BPM() { return BPM; }, get BELLS() { return BELL_NOTES; }, chordFor, styleW, feelT, pulseHit };   // for debugging in the console
+addEventListener("keydown", e => {
+  if (e.key === "h" || e.key === "H") swapHands = !swapHands;
+  if (/^[1-5]$/.test(e.key) && ctx && !e.metaKey && !e.ctrlKey) setPanel(PANELS[+e.key - 1]);
+  if (e.key === "0" && !e.metaKey && !e.ctrlKey) toggleHelp();
+  if (e.key === "Escape") toggleHelp(false);
+  if (e.key === "[") masterF = clamp(masterF - .05);
+  if (e.key === "]") masterF = clamp(masterF + .05);
+});
 </script>
 </body>
 </html>

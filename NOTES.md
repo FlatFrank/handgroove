@@ -4,8 +4,7 @@ Music played with the hands in front of a laptop camera, entirely in the browser
 An early version steered a set in Sonic Pi; it was replaced by browser synthesis so the project can live on a website.
 
 ## Pieces
-- **Handgroove** (`field.html`): the main piece, an ambient/minimal music field.
-- **Sound check** (`soundcheck.html`): the synthesized kit, bass and stabs on their own.
+- **Handgroove** (`index.html`): the piece itself. It opens straight into the playing field; **0** shows the help.
 
 ## Design decisions
 - **The camera steers, the clock plays.** Hand tracking has 50–100 ms of jitter, so gestures never trigger notes.
@@ -13,15 +12,29 @@ An early version steered a set in Sonic Pi; it was replaced by browser synthesis
 - **One grammar for every sound.** Each panel is an X-Y map, and each sound has a position on every map.
   The left hand chooses (fist, 1–4 fingers; open hand = nothing), the right fist grabs, opening drops,
   past the edge silences or resets. Push/pull and wrist twist add a third and fourth dimension while holding.
-- **Four panels (keys 1–4).** Sound (time × tone, depth, echo) · Texture (grain × dust, mix) ·
-  Style (loose↔locked × organic↔mechanical, volume) · Harmony (tempo × mode, key, chords).
+- **Five panels (keys 1–5).** Sound (time × tone, depth, echo) · Texture (grain × dust, mix) ·
+  Style (loose↔locked × organic↔industrial, acid zone in the far corner, volume) · Harmony (tempo × mode, key, chords) ·
+  Rhythm (syncopation × grouping, mutation, interlock).
 - **Procedural patterns.** Density comes from the Sound panel. The groove axis decides how patterns are made:
   locked = Euclidean rhythms that repeat; loose = chance weighted by the beat. Bells walk randomly when loose and
   lock into a slowly mutating motif when locked. Every note is constrained to the current mode, so chance never
   sounds wrong. Layers run on different cycle lengths, so the whole rarely repeats.
+- **Rhythm panel, not genres.** An earlier version had a map of named genres (dub, dembow, house…); it was replaced
+  because fixed templates went against the generative idea. Now each sound gets a rhythmic character instead, and styles
+  emerge from the mix. X = syncopation: step weights blend from on the grid (group starts, then their middles) to off it
+  (the middles, the step before each pulse, the step after). Y = grouping of the 16 steps: 4+4+4+4, 3+3+2·3+3+2,
+  3+3+3+3+4, 5+3+5+3. The pattern is the k best steps (k = density from the Sound panel), with a fixed random
+  tie-breaker per sound as its fingerprint. Mutation re-rolls a few tie-breakers each bar (0 = frozen). Interlock makes a
+  part avoid the steps of the parts before it (kick → sub → ticks → bells → pad), so the bass leaves room for the kick,
+  hats fill gaps and bells answer. Loose style still drops notes and adds ghost notes. Parked in the gutter = the free
+  patterns described above. The ring of 16 dots around each sound shows its bar.
+- **Transitions everywhere.** Each panel edits a target (what you see); the sound follows a gliding copy (what you hear),
+  with time constants of 0.8–2 s, recalculated by the scheduler so it keeps going in background tabs. Tempo glides; rhythm
+  patterns morph toward their target by at most two notes per bar; switching a sound between free and shaped rhythm
+  crossfades step by step; key and chord changes land on the next bar and crossfade on the pad; the master filter eases.
 - **Robust hands.** Roles survive one hand leaving the frame; grabbing needs a deliberate, steady fist and a visible
   left-hand pose; a hand leaving while holding puts the sound back where it was; one-frame tracking glitches are ignored.
-- **Sound.** Pure Web Audio: five voices, each with an organic and a mechanical version blended by the Style panel,
+- **Sound.** Pure Web Audio: five voices, each with an organic and an industrial version blended by the Style panel,
   per-voice echo, shared reverb, texture stage (grain gate, bit-crush, crackle), sidechain from the kick.
 
 ## References (from Documentation/references.md)

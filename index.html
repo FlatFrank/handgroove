@@ -105,9 +105,9 @@ body.rhy{--accent:#ff9f5a;--accent-ink:#ffd6b0}
     <h2>Panels · keys 1–5</h2>
     <div class="tablewrap"><table>
       <tr><th></th><th>left → right</th><th>bottom → top</th><th>push / pull</th><th>twist</th></tr>
-      <tr><td><kbd>1</kbd> sound</td><td>sparse → dense</td><td>dark → bright</td><td>near → far</td><td>echo</td></tr>
-      <tr><td><kbd>2</kbd> texture</td><td>smooth → granular</td><td>clean → dusty</td><td>less → more</td><td>echo</td></tr>
-      <tr><td><kbd>3</kbd> style</td><td>loose → locked</td><td>organic → industrial</td><td>louder → quieter</td><td>echo</td></tr>
+      <tr><td><kbd>1</kbd> sound</td><td>sparse → dense</td><td>dark → bright</td><td>near → far</td><td>instrument</td></tr>
+      <tr><td><kbd>2</kbd> texture</td><td>smooth → granular</td><td>clean → dusty</td><td>less → more</td><td>—</td></tr>
+      <tr><td><kbd>3</kbd> style</td><td>loose → locked</td><td>organic → industrial</td><td>louder → quieter</td><td>—</td></tr>
       <tr><td><kbd>4</kbd> harmony</td><td>(free)</td><td>dark → bright mood</td><td>1 → 8 chords</td><td>key</td></tr>
       <tr><td><kbd>5</kbd> rhythm</td><td>on → off the beat</td><td>even → odd groups</td><td>frozen → evolving</td><td>interlock</td></tr>
     </table></div>
@@ -115,11 +115,12 @@ body.rhy{--accent:#ff9f5a;--accent-ink:#ffd6b0}
       Push a sound into the far locked-and-industrial corner for acid: resonance and sliding basslines grow toward the corner.
       Nothing changes at once: the sound glides to wherever you put it over a few seconds, rhythms move a note or two per bar,
       and key and tempo changes ease in.
+      On the sound panel, twist a held light to switch its instrument: kick, tom, conga · ticks, shaker, clap · sub, reese, 808 · pad, organ, strings · bells, marimba, pluck. The new one comes in on the next beat.
       Harmony has a single light, the key, grabbed with the right fist alone.
       Rhythm: bring a sound in to shape its pattern (the ring of dots around it is its bar of 16 steps). Pull back and it keeps evolving;
       push in and it freezes. Twist for interlock: the parts start to listen to each other and leave room. Drop it past the edge for free patterns again.</p>
     <h2>Mouse and keys</h2>
-    <p>Drag a light · scroll on it: echo · shift+scroll: the push/pull control (on harmony, scroll changes the key and shift+scroll the chords; on rhythm, scroll is interlock and shift+scroll mutation) · <kbd>↑</kbd> <kbd>↓</kbd> tempo ±1 bpm (<kbd>Shift</kbd> ±10) · <kbd>[</kbd> <kbd>]</kbd> overall filter ·
+    <p>Drag a light · scroll on it: the instrument on sound · shift+scroll: the push/pull control (on harmony, scroll changes the key and shift+scroll the chords; on rhythm, scroll is interlock and shift+scroll mutation) · <kbd>↑</kbd> <kbd>↓</kbd> tempo ±1 bpm (<kbd>Shift</kbd> ±10) · <kbd>[</kbd> <kbd>]</kbd> overall filter ·
       <kbd>H</kbd> if your hands seem swapped · <kbd>0</kbd> this help</p>
     <p class="close">Press <kbd>0</kbd> or <kbd>Esc</kbd>, or click anywhere, to close.</p>
   </div>
@@ -130,13 +131,24 @@ body.rhy{--accent:#ff9f5a;--accent-ink:#ffd6b0}
    VOICES · six sounds, one shared grammar: x = time, y = tone
    ===================================================================== */
 const VOICES = [
-  { id: "kick", z: 0.05, echo: 0,  name: "Kick",  pose: "✊", color: "#ff7a66", x: .30, y: .35, active: false, level: .9  },
-  { id: "ticks", z: 0.3, echo: 0.25, name: "Ticks", pose: "1",  color: "#ffd166", x: .55, y: .70, active: false, level: .55 },
-  { id: "sub", z: 0, echo: 0,   name: "Sub",   pose: "2",  color: "#5aa9ff", x: .18, y: .22, active: true,  level: .55 },
-  { id: "pad", z: 0.45, echo: 0.1,   name: "Pad",   pose: "3",  color: "#b48cff", x: .22, y: .52, active: true,  level: .5  },
-  { id: "bells", z: 0.55, echo: 0.45, name: "Bells", pose: "4",  color: "#7dffcf", x: .62, y: .62, active: false, level: .32 },
+  { id: "kick", z: 0.05, name: "Kick",  pose: "✊", color: "#ff7a66", x: .30, y: .35, active: false, level: .9  },
+  { id: "ticks", z: 0.3, name: "Ticks", pose: "1",  color: "#ffd166", x: .55, y: .70, active: false, level: .55 },
+  { id: "sub", z: 0, name: "Sub",   pose: "2",  color: "#5aa9ff", x: .18, y: .22, active: true,  level: .55 },
+  { id: "pad", z: 0.45, name: "Pad",   pose: "3",  color: "#b48cff", x: .22, y: .52, active: true,  level: .5  },
+  { id: "bells", z: 0.55, name: "Bells", pose: "4",  color: "#7dffcf", x: .62, y: .62, active: false, level: .32 },
 ];
 const V = Object.fromEntries(VOICES.map(v => [v.id, v]));
+// Instrument families: on the Sound panel, twisting a held light steps through its family like a rotary switch.
+// The first name is the light's original sound. Lights with a single instrument ignore the twist there.
+const FAMILY = { kick: ["kick", "tom", "conga"], ticks: ["ticks", "shaker", "clap"], sub: ["sub", "reese", "808"],
+                 pad: ["pad", "organ", "strings"], bells: ["bells", "marimba", "pluck"] };
+const famOf = v => FAMILY[v.id] || [v.name.toLowerCase()];
+const INST_TURN = Math.PI / 5;                            // wrist turn per switch position (36°)
+VOICES.forEach(v => { v.inst = 0; v.instPos = 0; v.instH = 0; v.instAt = 0; });   // inst: chosen · instH: heard (switches on the beat)
+function setInstrument(v, pos) {                         // pos counts positions turned; it wraps around the family
+  const n = famOf(v).length; if (n < 2 || pos === v.instPos) return;
+  v.instPos = pos; v.inst = ((pos % n) + n) % n; v.instAt = performance.now();
+}
 
 let BPM = 116, STEP = 60 / BPM / 4;                     // the tempo you hear (glides toward tempoT)
 let tempoT = 116;                                       // the tempo you set: ↑ ↓ keys, ±1 bpm (Shift ±10)
@@ -290,8 +302,8 @@ const mark = v => { v.cur[curI] = 1; };
    Nothing jumps. Every panel edits a target (what you see); the sound follows a gliding copy (v.h, what you hear).
    Time constants in seconds (about 3× this to fully arrive). Tempo glides too; key and chord changes land on the
    next bar and crossfade; sounds fade in and out. */
-const GLIDE = { x: 1, y: 1, z: .9, echo: .9, tmix: 1, vol: .8, mut: 1.2, lock: 1.5, sty: 1.5, tex: 1, rhy: 2, rin: 1.6, bpm: 1.5 };
-const FLAT = ["x", "y", "z", "echo", "tmix", "vol", "mut", "lock"], PAIRS = ["sty", "tex", "rhy"];
+const GLIDE = { x: 1, y: 1, z: .9, tmix: 1, vol: .8, mut: 1.2, lock: 1.5, sty: 1.5, tex: 1, rhy: 2, rin: 1.6, bpm: 1.5 };
+const FLAT = ["x", "y", "z", "tmix", "vol", "mut", "lock"], PAIRS = ["sty", "tex", "rhy"];
 VOICES.forEach(v => {
   v.h = { rin: 0 }; for (const f of FLAT) v.h[f] = v[f]; for (const f of PAIRS) v.h[f] = { ...v[f] };
 });
@@ -314,7 +326,6 @@ function glide(now) {                                    // called by the schedu
   const target = tempoT;
   if (Math.abs(target - bpmH) > .01) {
     bpmH += (target - bpmH) * k("bpm"); BPM = bpmH; STEP = 60 / BPM / 4;
-    for (const v of VOICES) v.delay.delayTime.setTargetAtTime(STEP * 3, now, .3);
   }
 }
 const mixS = (w, a, o, i, t) => w.a * a + w.o * o + w.i * i + w.t * t;   // blend a value across the four corners
@@ -391,22 +402,15 @@ function initAudio() {
     v.dry = gainNode(1); v.rev = gainNode(0);
     v.post.connect(v.dry); v.dry.connect(v.id === "sub" || v.id === "pad" ? duck : bus);
     v.post.connect(v.rev); v.rev.connect(revIn);
-    // each voice has its own echo line, so twisting one sound's trails leaves the others alone
-    v.dSend = gainNode(0); v.delay = ctx.createDelay(3); v.delay.delayTime.value = STEP * 3;
-    v.fb = gainNode(0); const dlp = filt("lowpass", 3000), dhp = filt("highpass", 250), dOut = gainNode(.7);
-    v.post.connect(v.dSend); v.dSend.connect(v.delay); v.delay.connect(dlp); dlp.connect(dhp); dhp.connect(v.fb); v.fb.connect(v.delay);
-    dhp.connect(dOut); dOut.connect(bus); const dRev = gainNode(.35); dhp.connect(dRev); dRev.connect(revIn);
     applyFx(v, ctx.currentTime); applyTex(v, ctx.currentTime); applyStyle(v, ctx.currentTime);
   }
   sub = makeSub(); pad = makePad();
 }
 
-// depth z: 0 = close and dry, 1 = far and washed out · echo: 0 = none, 1 = long trails
+// depth z: 0 = close and dry, 1 = far and washed out
 function applyFx(v, now) {
   v.dry.gain.setTargetAtTime(1 - v.h.z * .55, now, .08);
   v.rev.gain.setTargetAtTime(.03 + v.h.z * .85, now, .08);
-  v.dSend.gain.setTargetAtTime(v.h.echo < .02 ? 0 : .2 + v.h.echo * .45, now, .08);
-  v.fb.gain.setTargetAtTime(.08 + v.h.echo * .74, now, .08);
 }
 function applyTex(v, now) {
   const d = dustOf(v) * v.h.tmix;
@@ -462,6 +466,8 @@ function applyVol(v, now) { if (v.active && now > (v.fadeEnd || 0)) v.out.gain.s
 /* ---------- Kick · x: density, from one hit every two bars to 7 per bar · y: pitch + click ---------- */
 function kickHit(t, vel) {
   const v = V.kick, w = styleW(v.h);
+  const inst = famOf(v)[v.instH];
+  if (inst !== "kick") { (inst === "tom" ? tomHit : congaHit)(t, vel, v, w); mark(v); emit(v, t, vel); return; }
   const end = (36 + v.h.y * 42) * (1 + (Math.random() - .5) * .04 * w.org);      // organic: the tuning breathes a little
   const ratio = mixS(w, 2.4, 2.8, 4.4, 4.2), drop = (.05 + (1 - v.h.y) * .04) * mixS(w, 1.5, 1.1, 1, .7);
   const dec = (.75 - v.h.y * .45) * mixS(w, 1.4, .8, 1.05, .6);
@@ -489,11 +495,34 @@ function kickHit(t, vel) {
   mark(v); emit(v, t, vel);
 }
 
+// tom: a tuned drum above the kick · a short bend down into the note, a skin on top; loose rings, locked is damped
+function tomHit(t, vel, v, w) {
+  const f = (70 + v.h.y * 170) * (1 + (Math.random() - .5) * .03 * w.org), dec = (.32 + (1 - v.h.y) * .4) * mixS(w, 1.3, .75, 1.1, .6);
+  const o = osc("sine", f * 1.6), go = env(t, vel * .85, .002, dec);
+  o.frequency.setValueAtTime(f * 1.6, t); o.frequency.exponentialRampToValueAtTime(f, t + .06);
+  const o2 = osc("triangle", f * 1.5), og = env(t, vel * .14, .001, dec * .35);
+  o.connect(go); go.connect(v.out); o2.connect(og); og.connect(v.out);
+  for (const x of [o, o2]) { x.start(t); x.stop(t + dec + .2); }
+  const n = noiseBurst(t, .06), bp = filt("bandpass", f * 4, 1.4), ng = env(t, vel * (.18 + w.mech * .2), .001, .035);
+  n.connect(bp); bp.connect(ng); ng.connect(v.out);
+}
+// conga: a hand drum, high and short · open tone low on the field, a slap as the tone goes up
+function congaHit(t, vel, v, w) {
+  const f = (190 + v.h.y * 230) * (1 + (Math.random() - .5) * .04 * w.org), dec = (.16 + (1 - v.h.y) * .2) * mixS(w, 1.3, .8, 1, .7);
+  const o = osc("sine", f * 1.15), go = env(t, vel * .7, .001, dec);
+  o.frequency.setValueAtTime(f * 1.15, t); o.frequency.exponentialRampToValueAtTime(f, t + .02);
+  o.connect(go); go.connect(v.out); o.start(t); o.stop(t + dec + .1);
+  const n = noiseBurst(t, .04), hp = filt("highpass", 1800 + v.h.y * 2500), ng = env(t, vel * (.1 + v.h.y * .45), .001, .025 + w.i * .03);
+  n.connect(hp); hp.connect(ng); ng.connect(v.out);
+}
+
 /* ---------- Ticks · organic: wood + shaker · mechanical: hats, 808 metal (acid), clangs (industrial) ---------- */
 const HAT808 = [205.3, 304.4, 369.6, 522.7, 540, 800];
 function tickHit(t, vel) {
   const v = V.ticks, w = styleW(v.h), p = pan((Math.random() - .5) * .9);
   p.connect(v.out);
+  const inst = famOf(v)[v.instH];
+  if (inst !== "ticks") { (inst === "shaker" ? shakerHit : clapHit)(t, vel, v, w, p); mark(v); emit(v, t, vel); return; }
   if (w.org > .04) {
     const woodF = (700 + v.h.y * 1900) * (.96 + Math.random() * .08), lowTone = 1 - v.h.y * .5;
     const n = noiseBurst(t, .05), bp = filt("bandpass", woodF, 18), g = env(t, vel * w.org * 2.4 * lowTone, .001, .05 + w.a * .04);
@@ -525,21 +554,47 @@ function tickHit(t, vel) {
   mark(v); emit(v, t, vel);
 }
 
+// shaker: seeds in a gourd · a soft rise, a short hiss; brighter as the tone goes up, narrower when industrial
+function shakerHit(t, vel, v, w, p) {
+  const n = noiseBurst(t, .14), bp = filt("bandpass", 4200 + v.h.y * 5000, .9 + w.i * 2), g = env(t, vel * .55, .008 + w.a * .012, .05 + (1 - v.h.y) * .05);
+  n.connect(bp); bp.connect(g); g.connect(p);
+}
+// clap: three quick bursts and a short room · tighter when locked
+function clapHit(t, vel, v, w, p) {
+  const f = 1000 + v.h.y * 1400, spread = .009 + (1 - clamp(v.h.sty.x)) * .006;
+  for (let k = 0; k < 3; k++) {
+    const tt = t + k * spread, n = noiseBurst(tt, .02), bp = filt("bandpass", f, 1.3), g = env(tt, vel * .4, .001, .012);
+    n.connect(bp); bp.connect(g); g.connect(p);
+  }
+  const n = noiseBurst(t, .25), bp = filt("bandpass", f * .9, 1), g = env(t + spread * 2, vel * .3, .002, .08 + w.org * .08);
+  n.connect(bp); bp.connect(g); g.connect(p);
+}
+
 /* ---------- Sub · organic: round, drifting, breathy, plucked when locked · mechanical: saw/square, acid line ---------- */
 function makeSub() {
   const v = V.sub, s = osc("sine", mtof(38)), tri = osc("triangle", mtof(38)), w = osc("sawtooth", mtof(38)), q = osc("square", mtof(38));
   const sg = gainNode(1), tg = gainNode(0), wg = gainNode(0), qg = gainNode(0), lp = filt("lowpass", 120, 1.2), amp = gainNode(0);
-  s.connect(sg); sg.connect(amp); tri.connect(tg); tg.connect(amp);
-  w.connect(wg); q.connect(qg); wg.connect(lp); qg.connect(lp); lp.connect(amp); amp.connect(v.out);
+  const main = gainNode(1);                                // the original sub on one bus, so the other instruments can crossfade with it
+  s.connect(sg); sg.connect(main); tri.connect(tg); tg.connect(main);
+  w.connect(wg); q.connect(qg); wg.connect(lp); qg.connect(lp); lp.connect(main); main.connect(amp); amp.connect(v.out);
+  // reese: two detuned saws beating against each other, under a resonant lowpass
+  const r1 = osc("sawtooth", mtof(38)), r2 = osc("sawtooth", mtof(38)), rlp = filt("lowpass", 220, 2), rg = gainNode(0);
+  r1.detune.value = -14; r2.detune.value = 14; r1.connect(rlp); r2.connect(rlp); rlp.connect(rg); rg.connect(amp);
+  // 808: a sine that drops into each note and rings long
+  const boom = osc("sine", mtof(38)), bg8 = gainNode(0); boom.connect(bg8); bg8.connect(amp);
   const drift = osc("sine", .23), driftAmt = gainNode(0); drift.connect(driftAmt); driftAmt.connect(s.detune); driftAmt.connect(tri.detune);
   const br = ctx.createBufferSource(); br.buffer = noiseBuf; br.loop = true;      // breath under the note
-  const brf = filt("lowpass", 320, .7), brg = gainNode(0); br.connect(brf); brf.connect(brg); brg.connect(amp);
-  for (const o of [s, tri, w, q, drift, br]) o.start();
-  let base = 120, rootNote = 38;
+  const brf = filt("lowpass", 320, .7), brg = gainNode(0); br.connect(brf); brf.connect(brg); brg.connect(main);
+  for (const o of [s, tri, w, q, drift, br, r1, r2, boom]) o.start();
+  let base = 120, rootNote = 38, lastNote = 38;
   const ACID_LINE = [0, 0, 7, 0, 2, 0, 9, 7, 0, 10, 0, 7, 3, 0, 7, 4];   // scale degrees, 303-style sequence
-  const setPitch = (n, t, glide) => { for (const o of [s, tri, w, q]) { if (glide) o.frequency.setTargetAtTime(mtof(n), t, glide); else o.frequency.setValueAtTime(mtof(n), t); } };
+  const setPitch = (n, t, glide) => { lastNote = n; for (const o of [s, tri, w, q, r1, r2, boom]) { if (glide) o.frequency.setTargetAtTime(mtof(n), t, glide); else o.frequency.setValueAtTime(mtof(n), t); } };
   return {
     tune(t, note) { rootNote = note; setPitch(note, t, .25); },
+    retimbre(t) {                                          // crossfade to the chosen instrument
+      const k = famOf(v)[v.instH];
+      main.gain.setTargetAtTime(k === "sub" ? 1 : 0, t, .12); rg.gain.setTargetAtTime(k === "reese" ? .5 : 0, t, .12); bg8.gain.setTargetAtTime(k === "808" ? 1 : 0, t, .12);
+    },
     tone(now) {
       const st = styleW(v.h);
       base = (70 + v.h.y * v.h.y * 1600) * mixS(st, 1, 1, 2, 1.2) * (1 + st.c * .4);
@@ -551,10 +606,12 @@ function makeSub() {
       brg.gain.setTargetAtTime(st.org * .035 * (.5 + v.h.y), now, .2);
       lp.Q.setTargetAtTime(1.2 + st.c * 13 + st.i * 3, now, .1);
       lp.frequency.setTargetAtTime(base, now, .1);
+      rlp.frequency.setTargetAtTime(90 + v.h.y * v.h.y * 1400 + st.c * 900, now, .1); rlp.Q.setTargetAtTime(2 + st.c * 10 + st.i * 3, now, .1);
     },
     step(t, i) {
       const st = styleW(v.h), mode = Math.min(4, Math.floor(v.h.x * 5)), lock = clamp(v.h.sty.x);
-      const tight = mixS(st, 1, .55, 1, .6) * lerp(1.35, .75, lock);   // loose = longer tails, locked = short gates, organic+locked = plucked
+      const is808 = famOf(v)[v.instH] === "808";
+      const tight = mixS(st, 1, .55, 1, .6) * lerp(1.35, .75, lock) * (is808 ? 1.8 : 1);   // loose = longer tails, locked = short gates, organic+locked = plucked
       const hit = (peak, len) => {
         let accent = false;
         if (st.c > .25) {                                 // acid: the sub plays a moving line with slides and accents
@@ -563,6 +620,7 @@ function makeSub() {
           setPitch(n, t, i % 4 === 3 || Math.random() < st.c * .25 ? .035 : 0);
           accent = i % 4 === 0 || deg >= 7; peak *= accent ? 1.1 : .8;
         } else setPitch(rootNote, t, .03);
+        if (is808) { const f = mtof(lastNote); boom.frequency.cancelScheduledValues(t); boom.frequency.setValueAtTime(f * 2.2, t); boom.frequency.exponentialRampToValueAtTime(f, t + .07); }   // the 808 rings longer and drops into the note
         amp.gain.setTargetAtTime(peak, t, .006 + st.org * .006); amp.gain.setTargetAtTime(0, t + len * tight, .05);
         if (st.c > .05) { lp.frequency.setValueAtTime(base * (1 + st.c * 9 * (accent ? 1.5 : 1)), t); lp.frequency.setTargetAtTime(base, t + .003, .06 + (1 - st.c) * .05); }
         mark(v); emit(v, t, peak);
@@ -591,7 +649,8 @@ function makePad() {
   const wow = osc("sine", .45), wowAmt = gainNode(0); wow.connect(wowAmt); wow.start();      // tape wow
   const mkNoise = (f, q) => { const n = ctx.createBufferSource(); n.buffer = noiseBuf; n.loop = true; const b = filt("bandpass", f, q), g = gainNode(0); n.connect(b); b.connect(g); g.connect(lp); n.start(); return g; };
   const ng = mkNoise(700, 1), bg = mkNoise(1500, .6);   // industrial grit · organic breath
-  let voices = [], gated = false;
+  let voices = [], gated = false, lastNotes = null;
+  const vib = osc("sine", 5.2), vibAmt = gainNode(7); vib.connect(vibAmt); vib.start();   // strings: a section's vibrato
   return {
     tone(now) {
       const st = styleW(v.h);
@@ -603,6 +662,7 @@ function makePad() {
       wowAmt.gain.setTargetAtTime(st.org * 9, now, .4);
       const spread = 1 + st.i * 6;
       for (const g of voices) {
+        if (!g._mechOscs) continue;                       // organ and strings keep their own voicing
         g._mechOscs.forEach(o => o.detune.setTargetAtTime(o._c * spread, now, .3));
         g._mech.gain.setTargetAtTime(st.mech, now, .4); g._org.gain.setTargetAtTime(st.org * 1.1, now, .4);
         g._sq.gain.setTargetAtTime(st.c * .8, now, .3);
@@ -615,7 +675,9 @@ function makePad() {
       if (i % 4 === 0 || !gated) { gate.gain.setTargetAtTime(floor, t, .05); gated = true; }
       if (r) { gate.gain.setTargetAtTime(r, t, .004); gate.gain.setTargetAtTime(floor, t + len, .03); if (audible(v, t)) { mark(v); emit(v, t, .5); } }
     },
+    retimbre(t) { if (lastNotes) this.chord(t, lastNotes); },   // rebuild the held chord in the new instrument; the old one fades out
     chord(t, notes) {
+      lastNotes = notes;
       for (const g of voices) { g.gain.cancelScheduledValues(t); g.gain.setTargetAtTime(0, t, 1.6); }
       const old = voices; setTimeout(() => old.forEach(g => g._all.forEach(o => { try { o.stop(); } catch {} })), (t - ctx.currentTime + 9) * 1000);
       const up = v.h.y > .68 ? 12 : 0, st = styleW(v.h);
@@ -623,6 +685,15 @@ function makePad() {
         const g = gainNode(0); g.gain.setTargetAtTime(.05, t, 1.4); g.connect(lp);
         g._mech = gainNode(st.mech); g._org = gainNode(st.org * 1.1); g._sq = gainNode(st.c * .8);
         for (const b of [g._mech, g._org, g._sq]) b.connect(g);
+        const kind = famOf(v)[v.instH];
+        if (kind === "organ") {                           // drawbars: the note, its octave, the twelfth and two octaves up
+          g._all = [[1, 1], [2, .65], [3, .4], [4, .28]].map(([r, a]) => { const o = osc("sine", mtof(n + up) * r), ga = gainNode(a); o.connect(ga); ga.connect(g); o.start(t); return o; });
+          return g;
+        }
+        if (kind === "strings") {                         // a section: four saws spread wide, sharing one vibrato
+          g._all = [-14, -5, 6, 15].map(c => { const o = osc("sawtooth", mtof(n + up)); o.detune.value = c; vibAmt.connect(o.detune); wowAmt.connect(o.detune); const ga = gainNode(.6); o.connect(ga); ga.connect(g); o.start(t); return o; });
+          return g;
+        }
         const mk = (type, cents, dest) => { const o = osc(type, mtof(n + up)); o._c = cents; o.detune.value = cents; wowAmt.connect(o.detune); o.connect(dest); o.start(t); return o; };
         g._mechOscs = [mk("sawtooth", -7, g._mech), mk("triangle", 6, g._mech), mk("sawtooth", 3, g._mech)];
         g._all = [...g._mechOscs, mk("triangle", -3, g._org), mk("sine", 4, g._org), mk("square", -4, g._sq)];
@@ -648,6 +719,8 @@ function bellHit(t, motifStep) {
   }
   const f = mtof(BELL_NOTES[bellIdx]), w = styleW(v.h), p = pan((Math.random() - .5) * 1.2);
   p.connect(v.out);
+  const inst = famOf(v)[v.instH];
+  if (inst !== "bells") { (inst === "marimba" ? marimbaHit : pluckHit)(t, f, w, p, v.h.y); mark(v); emit(v, t, .9); return; }
   if (w.org > .05) {                                    // a fundamental, a bright partial that dies fast, a little knock
     const dec = (w.a * (1.6 + Math.random()) + w.o * .45) / w.org * (1.1 - v.h.y * .3);
     const f1 = osc("sine", f), g1 = env(t, .3 * w.org, .002, dec);
@@ -675,6 +748,24 @@ function bellHit(t, motifStep) {
     o.connect(lp); lp.connect(g); g.connect(p); o.start(t); o.stop(t + .45);
   }
   mark(v); emit(v, t, .9);
+}
+// marimba: a tuned bar an octave down · the fundamental, its 4th partial that dies fast, a soft mallet; loose rings longer
+function marimbaHit(t, f, w, p, y) {
+  const fr = f / 2, dec = (.5 + (1 - y) * .5) * (w.a * 1.4 + w.o * .8 + w.i * .7 + w.t * .5);
+  const a = osc("sine", fr), ga = env(t, .42, .002, dec);
+  const b = osc("sine", fr * 3.93), gb = env(t, .12 + y * .1, .001, dec * .12);
+  const c = osc("sine", fr * 9.2), gc = env(t, .015 + w.mech * .04, .001, .03);   // industrial: a harder, metallic tick
+  for (const [o, g] of [[a, ga], [b, gb], [c, gc]]) { o.connect(g); g.connect(p); o.start(t); o.stop(t + dec + .1); }
+  const n = noiseBurst(t, .02), bp = filt("bandpass", fr * 2.5, 2), gn = env(t, .1 * w.org + .03, .001, .012);
+  n.connect(bp); bp.connect(gn); gn.connect(p);
+}
+// pluck: a string, bright on the attack and closing fast · acid and industrial add resonance to the filter
+function pluckHit(t, f, w, p, y) {
+  const dec = (.35 + (1 - y) * .3) * (w.a * 1.5 + w.o * .9 + w.i + w.t * .6), top = f * (4 + y * 10);
+  const s = osc("sawtooth", f), tr = osc("triangle", f * 1.003), lp = filt("lowpass", top, 1 + w.c * 10 + w.i * 2), g = env(t, .2, .002, dec);
+  lp.frequency.setValueAtTime(top, t); lp.frequency.exponentialRampToValueAtTime(Math.max(80, f * .9), t + dec * .6);
+  s.connect(lp); tr.connect(lp); lp.connect(g); g.connect(p);
+  for (const o of [s, tr]) { o.start(t); o.stop(t + dec + .1); }
 }
 
 /* ---------- clock ---------- */
@@ -728,6 +819,10 @@ function scheduleStep(t) {
   if (ti > .3 && i % 3 === 0 && Math.random() < ti) tickHit(feelT(V.ticks, t, i), .5);
   sub.step(feelT(V.sub, t, i), i);
   pad.step(t, i);
+  if (i % 4 === 0) for (const v of VOICES) if (v.instH !== v.inst) {   // a new instrument comes in on the beat
+    v.instH = v.inst;
+    if (v === V.sub) sub.retimbre(t); else if (v === V.pad) pad.retimbre(t);   // the held sounds crossfade
+  }
   if (on(V.bells)) {
     if (i === 0 && bar % 4 === 0) mutateMotif();       // the locked motif evolves one note every 4 bars
     if (rhyOn(V.bells)) { if (rhyHit(V.bells, i)) bellHit(feelT(V.bells, t, i), Math.random() < clamp(V.bells.h.sty.x) ? i : undefined); }
@@ -862,7 +957,7 @@ function drawField(now) {
   }
 
   // grid + quadrants
-  const TX = panel === "texture", SY = panel === "style", HR = panel === "harmony", RY = panel === "rhythm";
+  const TX = panel === "texture", SY = panel === "style", HR = panel === "harmony", RY = panel === "rhythm", SD = panel === "sound";
   const pc = (snd, tex, sty, har, rhy = "#1a140e") => RY ? rhy : HR ? har : SY ? sty : TX ? tex : snd;
   g2.strokeStyle = pc("#141722", "#1e1910", "#1a1222", "#0f1d1a"); g2.lineWidth = 1;
   for (let i = 1; i < 8 && !HR && !RY; i++) {        // the harmony and rhythm panels draw their own bands instead
@@ -933,10 +1028,6 @@ function drawField(now) {
       const lit = ctx && ctx.currentTime < (v.fadeEnd || 0) ? .25 + .75 * clamp(v.out.gain.value / (v.level * volF(v))) : 1;
       g2.shadowColor = v.color; g2.shadowBlur = 24 + v.pulse * 40 + v.z * 40; g2.globalAlpha = (1 - v.z * .4) * lit;
       g2.fillStyle = v.color; g2.beginPath(); g2.arc(x, y, rad, 0, Math.PI * 2); g2.fill(); g2.shadowBlur = 0; g2.globalAlpha = 1;
-      if (!RY && (v.echo > .02 || v === grabbed)) {      // echo dial
-        g2.strokeStyle = v.color; g2.lineWidth = 2; g2.globalAlpha = v === grabbed ? .9 : .45;
-        g2.beginPath(); g2.arc(x, y, rad + 7, -Math.PI / 2, -Math.PI / 2 + Math.max(.04, v.echo) * Math.PI * 1.8); g2.stroke(); g2.globalAlpha = 1;
-      }
     } else {
       g2.strokeStyle = v.color; g2.globalAlpha = .55; g2.lineWidth = 1.5;
       g2.beginPath(); g2.arc(x, y, rad, 0, Math.PI * 2); g2.stroke(); g2.globalAlpha = 1;
@@ -976,16 +1067,24 @@ function drawField(now) {
       g2.strokeStyle = v.color; g2.lineWidth = 1.5; g2.setLineDash([4, 5]);
       g2.beginPath(); g2.arc(x, y, rad + 14 + Math.sin(t * 4) * 2, 0, Math.PI * 2); g2.stroke(); g2.setLineDash([]);
     }
+    const fam = famOf(v);
+    if (SD && fam.length > 1 && (v === grabbed || performance.now() - v.instAt < 1500)) {   // the switch: the family fanned above the light, the chosen one lit
+      g2.font = font(600, 10); g2.textAlign = "center";
+      fam.forEach((nm, k) => {
+        const a = -Math.PI / 2 + (k - (fam.length - 1) / 2) * 1, r = rad + 48;
+        g2.fillStyle = k === v.inst ? v.color : "#5b6178"; g2.fillText(nm, x + Math.cos(a) * r, y + Math.sin(a) * r + 3);
+      });
+    }
     g2.fillStyle = live ? "#cfd3df" : "#5b6178"; g2.font = font(600, 12); g2.textAlign = "center";
     const lo = RY ? (shaped(v) ? rad + 34 : 30) : rad + 18;
-    g2.fillText(v.name.toUpperCase(), x, y + lo);
+    g2.fillText(v.name.toUpperCase() + (v.inst ? ` · ${fam[v.inst].toUpperCase()}` : ""), x, y + lo);
     if (RY && !shaped(v) && v !== grabbed) { g2.fillStyle = "#6e5038"; g2.font = font(500, 10); g2.fillText("free", x, y + lo + 12); }
     if (v === grabbed) { g2.fillStyle = v.color; g2.font = font(500, 10); const x = clamp(v.sx, 170, W - 170);
       { const w = styleW(v);
       g2.fillText(RY ? (shaped(v) ? `${v.rhy.x < .5 ? "on the beat " + Math.round((1 - clamp(v.rhy.x)) * 100) : "off the beat " + Math.round(clamp(v.rhy.x) * 100)} · ${groupingOf(v, false).name} · ${v.mut < .08 ? "frozen" : "mutation " + Math.round(v.mut * 100)} · interlock ${Math.round(v.lock * 100)}` : "free pattern")
                 : SY ? `${v.sty.x < .5 ? "loose " + Math.round((1 - clamp(v.sty.x)) * 100) : "locked " + Math.round(clamp(v.sty.x) * 100)} · ${v.sty.y < .5 ? "organic " + Math.round((1 - clamp(v.sty.y)) * 100) : "industrial " + Math.round(clamp(v.sty.y) * 100)}${w.c > .02 ? ` · acid ${Math.round(w.c * 100)}` : ''} · vol ${Math.round(v.vol / .73 * 100)}%`
                 : TX ? `grain ${Math.round(grainOf(v) * 100)} · dust ${Math.round(dustOf(v) * 100)} · mix ${Math.round(v.tmix * 100)}%`
-                : `depth ${Math.round(v.z * 100)} · echo ${Math.round(v.echo * 100)}`, x, y + lo + 14); } }
+                : `depth ${Math.round(v.z * 100)}${fam.length > 1 ? ` · ${fam[v.inst]}` : ""}`, x, y + lo + 14); } }
     else if (styleW(v).c > .2) { g2.fillStyle = "#d6ff5a"; g2.font = font(600, 10); g2.fillText("acid", x, y + rad + 30); }
   }
 
@@ -1066,7 +1165,8 @@ cv.addEventListener("pointermove", e => {
   cursor.x = clamp(x, -.1, 1.1); cursor.y = clamp(y, -.1, 1.1);
 });
 let lastKeyWheel = 0;
-cv.addEventListener("wheel", e => {                       // wheel on a light: echo · shift+wheel: depth
+let lastInstWheel = 0;
+cv.addEventListener("wheel", e => {                       // wheel on a light: instrument (sound) · shift+wheel: the push/pull control
   if (panel === "harmony") {                              // wheel: key · shift+wheel: chords
     if (!ctx || Math.hypot((KEY.sx ?? 0) - e.clientX, (KEY.sy ?? 0) - e.clientY) > 90) return;
     e.preventDefault();
@@ -1080,7 +1180,8 @@ cv.addEventListener("wheel", e => {                       // wheel on a light: e
   e.preventDefault();
   const delta = -Math.sign(e.deltaY) * .05;
   if (panel === "rhythm") { if (e.shiftKey) v.mut = clamp(v.mut + delta); else v.lock = clamp(v.lock + delta); return; }   // wheel: interlock · shift+wheel: mutation
-  if (e.shiftKey) { if (panel === "texture") v.tmix = clamp(v.tmix + delta); else if (panel === "style") v.vol = clamp(v.vol + delta); else v.z = clamp(v.z + delta); } else v.echo = clamp(v.echo + delta);
+  if (e.shiftKey) { if (panel === "texture") v.tmix = clamp(v.tmix + delta); else if (panel === "style") v.vol = clamp(v.vol + delta); else v.z = clamp(v.z + delta); }
+  else if (panel === "sound") { if (performance.now() - lastInstWheel > 180) { setInstrument(v, v.instPos - Math.sign(e.deltaY)); lastInstWheel = performance.now(); } }
   wheelVoice = v;
 }, { passive: false });
 cv.addEventListener("pointerup", () => { if (mouseDrag) { mouseDrag = false; release(); selected = null; } });
@@ -1150,9 +1251,9 @@ function handleHands(res, now) {
       if (panel === "harmony") { if (!grabbed) grab(KEY); }   // one light here: the right fist alone grabs it
       else if (selected && !grabbed && left) grab(selected);  // only grab while the left hand is showing a sound right now
     } else if (rightGrab && openSince && now - openSince > 100) { rightGrab = false; release(); }
-    if (grabbed && !mouseDrag) {                        // depth = palm size change, echo = wrist twist, both relative to the grab
+    if (grabbed && !mouseDrag) {                        // push/pull = palm size change, twist = wrist angle, both relative to the grab
       const size = palmSize(right.L), ang = handAngle(right.L);
-      if (!grabRef || grabRef.v !== grabbed) grabRef = { v: grabbed, s0: size, z0: grabbed.z, m0: grabbed.tmix, v0: grabbed.vol, a0: ang, e0: grabbed.echo, h0: KEY.motion, f0: KEY.fifth, u0: grabbed.mut, k0: grabbed.lock };
+      if (!grabRef || grabRef.v !== grabbed) grabRef = { v: grabbed, s0: size, z0: grabbed.z, m0: grabbed.tmix, v0: grabbed.vol, a0: ang, n0: grabbed.instPos, h0: KEY.motion, f0: KEY.fifth, u0: grabbed.mut, k0: grabbed.lock };
       const pull = (1 - size / grabRef.s0) * 1.6;        // pulling back = more (distance on the sound panel, texture mix on the texture panel)
       if (grabbed === KEY) {                            // pull back = more chords, twist = walk the circle of fifths
         KEY.motion = lerp(KEY.motion, clamp(grabRef.h0 + pull), .25);
@@ -1165,7 +1266,11 @@ function handleHands(res, now) {
       else if (panel === "texture") grabbed.tmix = lerp(grabbed.tmix, clamp(grabRef.m0 + pull), .25);
       else if (panel === "style") grabbed.vol = lerp(grabbed.vol, clamp(grabRef.v0 - pull), .25);   // closer = louder
       else grabbed.z = lerp(grabbed.z, clamp(grabRef.z0 + pull), .25);
-      if (grabbed !== KEY && panel !== "rhythm") grabbed.echo = lerp(grabbed.echo, clamp(grabRef.e0 + wrapAngle(ang - grabRef.a0) / (Math.PI * .6)), .25);
+      const turn = wrapAngle(ang - grabRef.a0);
+      if (grabbed !== KEY && panel === "sound") {         // the instrument switch: moves only once the turn is clearly past halfway, so it never flickers
+        const pos = grabRef.n0 + turn / INST_TURN;
+        if (Math.abs(pos - grabbed.instPos) > .7) setInstrument(grabbed, Math.round(pos));
+      }
     } else grabRef = null;
   } else if (!mouseDrag) {
     cursor.visible = false;
@@ -1232,7 +1337,8 @@ for (const v of VOICES) {
   d.innerHTML = `<i></i><em>${handIcon(VOICES.indexOf(v))}</em><span>${v.name}</span>`; legend.append(d); v.el = d;
 }
 function hud() {
-  for (const v of VOICES) { v.el.classList.toggle("on", v.active || v === grabbed); v.el.classList.toggle("sel", v === selected || v === grabbed); }
+  for (const v of VOICES) { v.el.classList.toggle("on", v.active || v === grabbed); v.el.classList.toggle("sel", v === selected || v === grabbed);
+    v.el.querySelector("span").textContent = v.name + (v.inst ? ` · ${famOf(v)[v.inst]}` : ""); }
   document.getElementById("unlock").hidden = !ctx || ctx.state === "running";
   document.getElementById("tempoTxt").textContent = `${Math.round(BPM)} bpm${Math.abs(BPM - tempoT) > .5 ? ` → ${tempoT}` : ""} · ${NOTE_NAMES[HS.key]} ${MODES[HS.mode][0]}`;
   document.getElementById("status").textContent = ({ starting: "starting camera…", on: "camera", off: "camera off · mouse" })[camState] + (masterF < .97 ? ` · filter ${Math.round(masterF * 100)}%` : "");

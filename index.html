@@ -52,8 +52,6 @@ body.sty{--accent:#a07ad6;--accent-ink:#e2d0ff}
 body.har{--accent:#5fe0b8;--accent-ink:#c9fbe9}
 body.rhy{--accent:#ff9f5a;--accent-ink:#ffd6b0}
 @media (prefers-reduced-motion:reduce){button,button kbd,#top b{transition:none!important}}
-#hint{position:fixed;left:50%;top:calc(var(--edge-y) + 44px);transform:translateX(-50%);color:var(--ink);font:500 var(--t-body)/1.4 var(--sans);
-  text-align:center;text-wrap:balance;pointer-events:none;opacity:.88;max-width:calc(100vw - 2 * var(--edge-x))}
 #legend{position:fixed;left:var(--edge-x);right:var(--edge-x);bottom:var(--edge-y);display:flex;flex-wrap:wrap;justify-content:center;gap:8px 24px;pointer-events:none}
 .lv{display:flex;align-items:center;gap:8px;color:var(--dim);font-size:var(--t-label);letter-spacing:.02em;padding:4px 8px;border:1px solid transparent}
 .lv i{width:10px;height:10px;border-radius:50%;border:1.5px solid currentColor}
@@ -87,7 +85,6 @@ body.rhy{--accent:#ff9f5a;--accent-ink:#ffd6b0}
   <span><b>Handgroove</b> · <span id="tempoTxt">116 bpm · D aeolian</span></span>
   <span class="nav"><span id="status">mouse</span><span id="tabs" role="tablist" aria-label="Panels"><button type="button" role="tab" aria-selected="true" data-p="sound" class="on"><kbd>1</kbd>sound</button><button type="button" role="tab" aria-selected="false" data-p="texture"><kbd>2</kbd>texture</button><button type="button" role="tab" aria-selected="false" data-p="style"><kbd>3</kbd>style</button><button type="button" role="tab" aria-selected="false" data-p="harmony"><kbd>4</kbd>harmony</button><button type="button" role="tab" aria-selected="false" data-p="rhythm"><kbd>5</kbd>rhythm</button></span><button type="button" id="helpBtn" aria-haspopup="dialog" aria-expanded="false"><kbd>0</kbd>help</button></span>
 </div>
-<div id="hint"></div>
 <div id="legend"></div>
 
 <div id="unlock" hidden>click anywhere or press any key to start the sound</div>
@@ -115,14 +112,14 @@ body.rhy{--accent:#ff9f5a;--accent-ink:#ffd6b0}
       <tr><td><kbd>5</kbd> rhythm</td><td>on → off the beat</td><td>even → odd groups</td><td>frozen → evolving</td><td>interlock</td></tr>
     </table></div>
     <p>Style: loose patterns change every bar, locked ones repeat; organic sounds are wood, skin and breath, industrial ones metal and machines.
-      Push a sound into the far locked-and-industrial corner for acid.
+      Push a sound into the far locked-and-industrial corner for acid: resonance and sliding basslines grow toward the corner.
       Nothing changes at once: the sound glides to wherever you put it over a few seconds, rhythms move a note or two per bar,
       and key and tempo changes ease in.
       Harmony has a single light, the key, grabbed with the right fist alone.
       Rhythm: bring a sound in to shape its pattern (the ring of dots around it is its bar of 16 steps). Pull back and it keeps evolving;
       push in and it freezes. Twist for interlock: the parts start to listen to each other and leave room. Drop it past the edge for free patterns again.</p>
     <h2>Mouse and keys</h2>
-    <p>Drag a light · scroll on it: echo · shift+scroll: the push/pull control · <kbd>↑</kbd> <kbd>↓</kbd> tempo ±1 bpm (<kbd>Shift</kbd> ±10) · <kbd>[</kbd> <kbd>]</kbd> overall filter ·
+    <p>Drag a light · scroll on it: echo · shift+scroll: the push/pull control (on harmony, scroll changes the key and shift+scroll the chords; on rhythm, scroll is interlock and shift+scroll mutation) · <kbd>↑</kbd> <kbd>↓</kbd> tempo ±1 bpm (<kbd>Shift</kbd> ±10) · <kbd>[</kbd> <kbd>]</kbd> overall filter ·
       <kbd>H</kbd> if your hands seem swapped · <kbd>0</kbd> this help</p>
     <p class="close">Press <kbd>0</kbd> or <kbd>Esc</kbd>, or click anywhere, to close.</p>
   </div>
@@ -764,7 +761,7 @@ let W = 0, H = 0, MX = 0, MY = 0;
 function resize() {
   const r = devicePixelRatio || 1; W = innerWidth; H = innerHeight;
   MX = Math.round(clamp(W * .075, 64, 150));      // side margins: room for parked lights and the side labels
-  MY = Math.round(clamp(H * .11, 84, 130));       // top/bottom: clears the header, hint and legend
+  MY = Math.round(clamp(H * .11, 84, 130));       // top/bottom: clears the header and legend
   cv.width = W * r; cv.height = H * r; g2.setTransform(r, 0, 0, r, 0, 0);
 }
 addEventListener("resize", resize); resize();
@@ -794,8 +791,6 @@ function drawHarmonyBands() {
     g2.fillText(MODES[m][0].toUpperCase(), fx(0) + 12, mid + 2);
     g2.fillStyle = "#3f6f62"; g2.font = font(500, 10); g2.fillText(MODE_MOOD[m], fx(0) + 12, mid + 17);
   }
-  g2.fillStyle = "#4f8a78"; g2.font = font(600, 10); g2.textAlign = "center";
-  g2.fillText(`tempo ${tempoT} bpm  ·  ↑ ↓ keys: ±1  ·  shift + ↑ ↓: ±10`, W / 2, fy(0) - 10);
 }
 
 function drawRhythmBands() {
@@ -894,7 +889,6 @@ function drawField(now) {
     g2.beginPath(); pts.forEach(([a, b], k) => k ? g2.lineTo(a, b) : g2.moveTo(a, b)); g2.stroke(); g2.setLineDash([]);
     g2.font = font(800, 15); g2.fillStyle = "#d6ff5a"; g2.textAlign = "right";
     g2.fillText("ACID", fx(1) - 14, fy(1) + 26);
-    g2.font = font(500, 10); g2.fillStyle = "#a9c94c"; g2.fillText("resonance and slides grow toward the corner", fx(1) - 14, fy(1) + 41);
     g2.font = font(600, 10); g2.fillStyle = "#6a5590"; g2.textAlign = "center";
     g2.fillText("loose · chance  ←  GROOVE  →  locked · euclidean", W / 2, fy(0) - 10);
     g2.save(); g2.translate(fx(0) - 22, H / 2); g2.rotate(-Math.PI / 2); g2.fillText("organic  ←  MATERIAL  →  industrial", 0, 0); g2.restore();
@@ -912,7 +906,6 @@ function drawField(now) {
     g2.strokeStyle = "#5a4523"; g2.setLineDash([3, 5]); g2.strokeRect(fx(0), fy(.25), fx(.25) - fx(0), fy(0) - fy(.25)); g2.setLineDash([]);
     g2.fillStyle = "#8a7246"; g2.textAlign = "left"; g2.fillText("CLEAN", fx(0) + 8, fy(.25) + 14);
   }
-  if (edgeAlert) { g2.fillStyle = "#ff7a66"; g2.textAlign = "center"; g2.fillText(RY ? "let go here for free patterns again" : HR ? "let go here to reset key and mood" : SY ? "let go here to reset its style" : TX ? "let go here to make it clean again" : "let go here to silence it", W / 2, fy(1) - 14); }
 
   // ripples
   for (let i = rings.length - 1; i >= 0; i--) {
@@ -1236,30 +1229,11 @@ function handIcon(n) {
 const legend = document.getElementById("legend");
 for (const v of VOICES) {
   const d = document.createElement("div"); d.className = "lv"; d.style.color = v.color; d.dataset.id = v.id;
-  d.innerHTML = `<i></i><em title="left hand: ${VOICES.indexOf(v) ? VOICES.indexOf(v) + " finger" + (VOICES.indexOf(v) > 1 ? "s" : "") : "fist"}">${handIcon(VOICES.indexOf(v))}</em><span>${v.name}</span>`; legend.append(d); v.el = d;
+  d.innerHTML = `<i></i><em>${handIcon(VOICES.indexOf(v))}</em><span>${v.name}</span>`; legend.append(d); v.el = d;
 }
 function hud() {
   for (const v of VOICES) { v.el.classList.toggle("on", v.active || v === grabbed); v.el.classList.toggle("sel", v === selected || v === grabbed); }
-  const h = document.getElementById("hint");
   document.getElementById("unlock").hidden = !ctx || ctx.state === "running";
-  if (!ctx) h.textContent = "";
-  else if (grabbed === KEY) h.textContent = inField(cursor.x, cursor.y) || mouseDrag && inField(KEY.x, KEY.y)
-    ? (camOn ? "up / down: mood · twist for key · pull back for more chords · open your hand to drop" : "up / down: mood · drop it where it feels right")
-    : "release to reset key and mood";
-  else if (panel === "harmony") h.textContent = camOn ? "harmony · close your right hand to grab the key · ↑ ↓ keys: tempo" : "harmony · drag the key · wheel: key · shift+wheel: chords · ↑ ↓ keys: tempo";
-  else if (grabbed) { const nm = grabbed.name.toLowerCase();
-    h.textContent = panel === "texture"
-      ? (inField(cursor.x, cursor.y) || mouseDrag && inField(Q(grabbed).x, Q(grabbed).y) ? `texturing ${nm} · pull back for more mix · open your hand to drop it` : `release to make ${nm} clean again`)
-      : panel === "rhythm"
-      ? (inField(cursor.x, cursor.y) || mouseDrag && inField(Q(grabbed).x, Q(grabbed).y) ? (camOn ? `shaping ${nm} · pull back = evolving · twist = interlock` : `shaping ${nm} · ← → syncopation · ↑ ↓ grouping`) : `release for a free ${nm} pattern`)
-      : panel === "style"
-      ? (inField(cursor.x, cursor.y) || mouseDrag && inField(Q(grabbed).x, Q(grabbed).y) ? `styling ${nm} · push in = louder · pull back = quieter` : `release to reset ${nm}'s style`)
-      : (inField(cursor.x, cursor.y) || mouseDrag && inField(grabbed.x, grabbed.y) ? `moving ${nm} · open your hand to drop it` : `release to silence ${nm}`); }
-  else if (selected) h.textContent = `${selected.name.toLowerCase()} selected · close your right hand to grab it`;
-  else if (panel === "texture") h.textContent = camOn ? "texture panel · right = grain, up = dust · pull back for more mix" : "texture panel · right = grain, up = dust · shift+wheel: mix";
-  else if (panel === "rhythm") h.textContent = camOn ? "rhythm · bring a sound in to shape its pattern · pull back = evolving · twist = interlock" : "rhythm · drag a sound in · wheel: interlock · shift+wheel: mutation";
-  else if (panel === "style") h.textContent = camOn ? "style · push in / pull back for volume" : "style · drag a light · shift+scroll: volume";
-  else h.textContent = camOn ? "left hand: choose a sound by its shape · 1–5 panels · 0 help" : "drag a light · scroll: echo · shift+scroll: depth · 1–5 panels · 0 help";
   document.getElementById("tempoTxt").textContent = `${Math.round(BPM)} bpm${Math.abs(BPM - tempoT) > .5 ? ` → ${tempoT}` : ""} · ${NOTE_NAMES[HS.key]} ${MODES[HS.mode][0]}`;
   document.getElementById("status").textContent = ({ starting: "starting camera…", on: "camera", off: "camera off · mouse" })[camState] + (masterF < .97 ? ` · filter ${Math.round(masterF * 100)}%` : "");
 }
